@@ -1,0 +1,414 @@
+const express = require('express');
+const { protect, authorize } = require('../middleware/auth');
+const { 
+  uploads, 
+  validateUpload, 
+  handleUploadError, 
+  deleteFile, 
+  listFiles 
+} = require('../services/uploadService');
+
+const router = express.Router();
+
+// Apply authentication and validation to all upload routes
+router.use(protect);
+router.use(validateUpload);
+
+/**
+ * @swagger
+ * /api/upload/category-thumbnail:
+ *   post:
+ *     summary: Upload category thumbnail
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *                 description: Category thumbnail image
+ *     responses:
+ *       200:
+ *         description: File uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: File uploaded successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     url:
+ *                       type: string
+ *                       example: https://bucket.s3.region.amazonaws.com/categories/file.jpg
+ *                     key:
+ *                       type: string
+ *                       example: categories/1234567890-abc123-filename.jpg
+ *                     size:
+ *                       type: number
+ *                       example: 1024000
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.post('/category-thumbnail', authorize('admin'), (req, res, next) => {
+  uploads.categoryThumbnail(req, res, (err) => {
+    if (err) {
+      return handleUploadError(err, req, res, next);
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Category thumbnail uploaded successfully',
+      data: {
+        url: req.file.location,
+        key: req.file.key,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  });
+});
+
+/**
+ * @swagger
+ * /api/upload/topic-thumbnail:
+ *   post:
+ *     summary: Upload topic thumbnail
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: File uploaded successfully
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
+router.post('/topic-thumbnail', authorize('admin'), (req, res, next) => {
+  uploads.topicThumbnail(req, res, (err) => {
+    if (err) {
+      return handleUploadError(err, req, res, next);
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Topic thumbnail uploaded successfully',
+      data: {
+        url: req.file.location,
+        key: req.file.key,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  });
+});
+
+/**
+ * @swagger
+ * /api/upload/video:
+ *   post:
+ *     summary: Upload video file
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Video file (max 500MB)
+ *     responses:
+ *       200:
+ *         description: Video uploaded successfully
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
+router.post('/video', authorize('admin'), (req, res, next) => {
+  uploads.videoFile(req, res, (err) => {
+    if (err) {
+      return handleUploadError(err, req, res, next);
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No video file uploaded'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Video uploaded successfully',
+      data: {
+        url: req.file.location,
+        key: req.file.key,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  });
+});
+
+/**
+ * @swagger
+ * /api/upload/video-thumbnail:
+ *   post:
+ *     summary: Upload video thumbnail
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Thumbnail uploaded successfully
+ */
+router.post('/video-thumbnail', authorize('admin'), (req, res, next) => {
+  uploads.videoThumbnail(req, res, (err) => {
+    if (err) {
+      return handleUploadError(err, req, res, next);
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No thumbnail uploaded'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Video thumbnail uploaded successfully',
+      data: {
+        url: req.file.location,
+        key: req.file.key,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  });
+});
+
+/**
+ * @swagger
+ * /api/upload/avatar:
+ *   post:
+ *     summary: Upload user avatar
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar uploaded successfully
+ */
+router.post('/avatar', (req, res, next) => {
+  uploads.userAvatar(req, res, (err) => {
+    if (err) {
+      return handleUploadError(err, req, res, next);
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No avatar uploaded'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: {
+        url: req.file.location,
+        key: req.file.key,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }
+    });
+  });
+});
+
+/**
+ * @swagger
+ * /api/upload/files:
+ *   get:
+ *     summary: List uploaded files
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: folder
+ *         schema:
+ *           type: string
+ *         description: Folder prefix to filter files
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Maximum number of files to return
+ *     responses:
+ *       200:
+ *         description: Files listed successfully
+ */
+router.get('/files', authorize('admin'), async (req, res) => {
+  try {
+    const { folder = '', limit = 100 } = req.query;
+    
+    const result = await listFiles(folder, parseInt(limit));
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      count: result.files.length,
+      data: result.files
+    });
+  } catch (error) {
+    console.error('List files error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/upload/delete:
+ *   delete:
+ *     summary: Delete uploaded file
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               url:
+ *                 type: string
+ *                 description: File URL to delete
+ *             required:
+ *               - url
+ *     responses:
+ *       200:
+ *         description: File deleted successfully
+ */
+router.delete('/delete', authorize('admin'), async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'File URL is required'
+      });
+    }
+    
+    const result = await deleteFile(url);
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/upload/check-bucket
+// @desc    Check if S3 bucket exists and is accessible
+// @access  Private (or Public for testing)
+router.get('/check-bucket', async (req, res) => {
+  try {
+    const result = await uploadService.checkBucketExists();
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error checking S3 bucket',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;
