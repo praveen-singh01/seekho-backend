@@ -1,6 +1,5 @@
 const AWS = require('aws-sdk');
 const multer = require('multer');
-const multerS3 = require('multer-s3');
 const path = require('path');
 
 // Configure AWS
@@ -40,30 +39,46 @@ const generateFileName = (originalname, folder = '') => {
   return folder ? `${folder}/${timestamp}-${randomString}-${baseName}${extension}` : `${timestamp}-${randomString}-${baseName}${extension}`;
 };
 
-// S3 upload configuration
+// Custom S3 storage using memory storage + manual upload
 const createS3Upload = (folder = 'uploads') => {
   return multer({
-    storage: multerS3({
-      s3: s3,
-      bucket: process.env.AWS_S3_BUCKET_NAME,
-      acl: 'public-read',
-      metadata: function (req, file, cb) {
-        cb(null, {
-          fieldName: file.fieldname,
-          uploadedBy: req.user ? req.user.id : 'anonymous',
-          uploadedAt: new Date().toISOString()
-        });
-      },
-      key: function (req, file, cb) {
-        const fileName = generateFileName(file.originalname, folder);
-        cb(null, fileName);
-      }
-    }),
+    storage: multer.memoryStorage(),
     fileFilter: fileFilter,
     limits: {
       fileSize: getFileSizeLimit(folder)
     }
   });
+};
+
+// Upload file to S3 manually
+const uploadToS3 = async (file, folder = 'uploads') => {
+  const fileName = generateFileName(file.originalname, folder);
+
+  const params = {
+    Bucket: process.env.AWS_S3_BUCKET_NAME,
+    Key: fileName,
+    Body: file.buffer,
+    ContentType: file.mimetype
+  };
+
+  try {
+    const result = await s3.upload(params).promise();
+    return {
+      success: true,
+      data: {
+        url: result.Location,
+        key: result.Key,
+        size: file.size,
+        mimetype: file.mimetype
+      }
+    };
+  } catch (error) {
+    console.error('S3 upload error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 };
 
 // Get file size limit based on folder/type
@@ -97,31 +112,31 @@ const uploadMiddleware = {
   }
 };
 
-// Specific upload configurations
+// Specific upload configurations using memory storage
 const uploads = {
   // Category thumbnail upload
-  categoryThumbnail: uploadMiddleware.single('thumbnail', 'categories'),
-  
+  categoryThumbnail: createS3Upload('categories').single('thumbnail'),
+
   // Topic thumbnail upload
-  topicThumbnail: uploadMiddleware.single('thumbnail', 'topics'),
-  
+  topicThumbnail: createS3Upload('topics').single('thumbnail'),
+
   // Video file upload
-  videoFile: uploadMiddleware.single('video', 'videos'),
-  
+  videoFile: createS3Upload('videos').single('video'),
+
   // Video thumbnail upload
-  videoThumbnail: uploadMiddleware.single('thumbnail', 'thumbnails'),
-  
+  videoThumbnail: createS3Upload('thumbnails').single('thumbnail'),
+
   // User avatar upload
-  userAvatar: uploadMiddleware.single('avatar', 'avatars'),
-  
+  userAvatar: createS3Upload('avatars').single('avatar'),
+
   // Multiple video resources
-  videoResources: uploadMiddleware.multiple('resources', 10, 'resources'),
-  
+  videoResources: createS3Upload('resources').array('resources', 10),
+
   // Video with thumbnail
-  videoWithThumbnail: uploadMiddleware.fields([
+  videoWithThumbnail: createS3Upload('videos').fields([
     { name: 'video', maxCount: 1 },
     { name: 'thumbnail', maxCount: 1 }
-  ], 'videos')
+  ])
 };
 
 // Delete file from S3
@@ -249,6 +264,7 @@ const checkBucketExists = async () => {
 module.exports = {
   uploads,
   uploadMiddleware,
+  uploadToS3,
   deleteFile,
   getSignedUrl,
   listFiles,

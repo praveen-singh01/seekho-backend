@@ -1,11 +1,13 @@
 const express = require('express');
 const { protect, authorize } = require('../middleware/auth');
-const { 
-  uploads, 
-  validateUpload, 
-  handleUploadError, 
-  deleteFile, 
-  listFiles 
+const {
+  uploads,
+  validateUpload,
+  handleUploadError,
+  deleteFile,
+  listFiles,
+  checkBucketExists,
+  uploadToS3
 } = require('../services/uploadService');
 
 const router = express.Router();
@@ -64,29 +66,45 @@ router.use(validateUpload);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.post('/category-thumbnail', authorize('admin'), (req, res, next) => {
-  uploads.categoryThumbnail(req, res, (err) => {
+router.post('/category-thumbnail', authorize('admin'), async (req, res, next) => {
+  const upload = uploads.categoryThumbnail;
+
+  upload(req, res, async (err) => {
     if (err) {
       return handleUploadError(err, req, res, next);
     }
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Category thumbnail uploaded successfully',
-      data: {
-        url: req.file.location,
-        key: req.file.key,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+
+    try {
+      const result = await uploadToS3(req.file, 'categories');
+
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: 'Category thumbnail uploaded successfully',
+          data: result.data
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to upload to S3',
+          error: result.error
+        });
       }
-    });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Upload failed',
+        error: error.message
+      });
+    }
   });
 });
 
@@ -397,12 +415,13 @@ router.delete('/delete', authorize('admin'), async (req, res) => {
 
 // @route   GET /api/upload/check-bucket
 // @desc    Check if S3 bucket exists and is accessible
-// @access  Private (or Public for testing)
-router.get('/check-bucket', async (req, res) => {
+// @access  Private/Admin
+router.get('/check-bucket', authorize('admin'), async (req, res) => {
   try {
-    const result = await uploadService.checkBucketExists();
+    const result = await checkBucketExists();
     return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
+    console.error('Bucket check error:', error);
     return res.status(500).json({
       success: false,
       message: 'Error checking S3 bucket',

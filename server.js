@@ -58,6 +58,7 @@ const corsOptions = {
       process.env.CLIENT_URL,
       process.env.FRONTEND_URL,
       process.env.WEB_URL,
+      process.env.ADMIN_DASHBOARD_URL,
       // Additional origins from environment variable
       ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : []),
       // Allow any localhost with different ports for development

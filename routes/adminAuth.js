@@ -125,6 +125,18 @@ const validatePasswordChange = [
  */
 router.post('/login', validateAdminLogin, adminLogin);
 
+// @route   GET /api/auth/admin/me
+// @desc    Get current admin user
+// @access  Private/Admin
+router.get('/me', protect, authorize('admin'), (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      user: req.user
+    }
+  });
+});
+
 /**
  * @swagger
  * /api/auth/admin/create:
