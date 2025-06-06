@@ -27,30 +27,35 @@ const connectDB = async () => {
 const categories = [
   {
     name: 'Gaming',
+    slug: 'gaming',
     description: 'Learn gaming strategies, tips, and techniques',
     color: '#FF6B6B',
     order: 1
   },
   {
     name: 'Astrology',
+    slug: 'astrology',
     description: 'Explore the mysteries of astrology and cosmic influences',
     color: '#4ECDC4',
     order: 2
   },
   {
     name: 'English',
+    slug: 'english',
     description: 'Master the English language with comprehensive lessons',
     color: '#45B7D1',
     order: 3
   },
   {
     name: 'Technology',
+    slug: 'technology',
     description: 'Stay updated with the latest in technology and programming',
     color: '#96CEB4',
     order: 4
   },
   {
     name: 'Business',
+    slug: 'business',
     description: 'Learn business strategies and entrepreneurship',
     color: '#FFEAA7',
     order: 5
@@ -61,6 +66,7 @@ const topics = [
   // Gaming topics
   {
     title: 'PUBG Mobile Strategies',
+    slug: 'pubg-mobile-strategies',
     description: 'Advanced strategies for PUBG Mobile gameplay',
     difficulty: 'intermediate',
     estimatedDuration: 120,
@@ -69,6 +75,7 @@ const topics = [
   },
   {
     title: 'Free Fire Tips & Tricks',
+    slug: 'free-fire-tips-tricks',
     description: 'Master Free Fire with these essential tips',
     difficulty: 'beginner',
     estimatedDuration: 90,
@@ -79,6 +86,7 @@ const topics = [
   // Astrology topics
   {
     title: 'Zodiac Signs Basics',
+    slug: 'zodiac-signs-basics',
     description: 'Understanding the 12 zodiac signs and their characteristics',
     difficulty: 'beginner',
     estimatedDuration: 150,
@@ -87,16 +95,18 @@ const topics = [
   },
   {
     title: 'Vedic Astrology',
+    slug: 'vedic-astrology',
     description: 'Deep dive into Vedic astrology principles',
     difficulty: 'advanced',
     estimatedDuration: 300,
     isPremium: true,
     order: 2
   },
-  
+
   // English topics
   {
     title: 'English Grammar Fundamentals',
+    slug: 'english-grammar-fundamentals',
     description: 'Master the basics of English grammar',
     difficulty: 'beginner',
     estimatedDuration: 180,
@@ -105,26 +115,29 @@ const topics = [
   },
   {
     title: 'Advanced English Tenses',
+    slug: 'advanced-english-tenses',
     description: 'Complete guide to English tenses with examples',
     difficulty: 'intermediate',
     estimatedDuration: 240,
     isPremium: true,
     order: 2
   },
-  
+
   // Technology topics
   {
     title: 'JavaScript Basics',
+    slug: 'javascript-basics',
     description: 'Learn JavaScript programming from scratch',
     difficulty: 'beginner',
     estimatedDuration: 360,
     isPremium: true,
     order: 1
   },
-  
+
   // Business topics
   {
     title: 'Digital Marketing',
+    slug: 'digital-marketing',
     description: 'Complete guide to digital marketing strategies',
     difficulty: 'intermediate',
     estimatedDuration: 300,
@@ -137,6 +150,7 @@ const videos = [
   // PUBG Mobile Strategies videos
   {
     title: 'PUBG Mobile: Landing Strategies',
+    slug: 'pubg-mobile-landing-strategies',
     description: 'Learn the best landing spots and strategies for PUBG Mobile',
     videoUrl: 'https://example.com/video1.mp4',
     duration: 600, // 10 minutes
@@ -147,6 +161,7 @@ const videos = [
   },
   {
     title: 'PUBG Mobile: Weapon Selection Guide',
+    slug: 'pubg-mobile-weapon-selection-guide',
     description: 'Choose the right weapons for different situations',
     videoUrl: 'https://example.com/video2.mp4',
     duration: 720, // 12 minutes
@@ -159,6 +174,7 @@ const videos = [
   // Free Fire Tips videos
   {
     title: 'Free Fire: Character Selection',
+    slug: 'free-fire-character-selection',
     description: 'Best characters for different game modes',
     videoUrl: 'https://example.com/video3.mp4',
     duration: 480, // 8 minutes
@@ -167,10 +183,11 @@ const videos = [
     isFree: true,
     quality: '720p'
   },
-  
+
   // Zodiac Signs videos
   {
     title: 'Introduction to Zodiac Signs',
+    slug: 'introduction-to-zodiac-signs',
     description: 'Overview of all 12 zodiac signs',
     videoUrl: 'https://example.com/video4.mp4',
     duration: 900, // 15 minutes
@@ -179,10 +196,11 @@ const videos = [
     isFree: true,
     quality: '720p'
   },
-  
+
   // English Grammar videos
   {
     title: 'Parts of Speech',
+    slug: 'parts-of-speech',
     description: 'Understanding nouns, verbs, adjectives, and more',
     videoUrl: 'https://example.com/video5.mp4',
     duration: 1080, // 18 minutes
@@ -191,10 +209,11 @@ const videos = [
     isFree: true,
     quality: '720p'
   },
-  
+
   // Advanced Tenses videos
   {
     title: 'Present Perfect Tense',
+    slug: 'present-perfect-tense',
     description: 'Master the present perfect tense with examples',
     videoUrl: 'https://example.com/video6.mp4',
     duration: 960, // 16 minutes

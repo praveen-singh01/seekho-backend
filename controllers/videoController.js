@@ -1,5 +1,8 @@
 const Video = require('../models/Video');
 const Topic = require('../models/Topic');
+const Category = require('../models/Category');
+const UserProgress = require('../models/UserProgress');
+const WatchHistory = require('../models/WatchHistory');
 
 // @desc    Get all videos
 // @route   GET /api/videos
@@ -343,10 +346,311 @@ const searchVideos = async (req, res) => {
   }
 };
 
+// @desc    Get video streaming URL
+// @route   GET /api/videos/:id/stream
+// @access  Private (requires access to video)
+const getVideoStream = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id)
+      .populate('topic', 'title category isPremium')
+      .populate({
+        path: 'topic',
+        populate: {
+          path: 'category',
+          select: 'name'
+        }
+      });
+
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Subscription required to access this video'
+      });
+    }
+
+    // Generate streaming URL (in production, this would be a signed URL from CDN)
+    const streamUrl = video.videoUrl;
+
+    // Get available qualities (this would come from video processing service)
+    const qualities = ['720p', '480p', '360p'];
+
+    res.status(200).json({
+      success: true,
+      data: {
+        streamUrl,
+        qualities,
+        duration: video.duration,
+        subtitles: video.subtitles || [],
+        thumbnail: video.thumbnail,
+        title: video.title
+      }
+    });
+  } catch (error) {
+    console.error('Get video stream error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get popular videos
+// @route   GET /api/videos/popular
+// @access  Public
+const getPopularVideos = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const videos = await Video.find({ isActive: true })
+      .sort({ views: -1, likes: -1 })
+      .limit(parseInt(limit))
+      .populate('topic', 'title category')
+      .populate({
+        path: 'topic',
+        populate: {
+          path: 'category',
+          select: 'name'
+        }
+      })
+      .select('-__v');
+
+    // Add access information and filter sensitive data
+    for (let video of videos) {
+      const hasAccess = await video.hasAccess(req.user);
+      video._doc.hasAccess = hasAccess;
+
+      // Hide video URL if no access
+      if (!hasAccess) {
+        video._doc.videoUrl = undefined;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      count: videos.length,
+      data: videos
+    });
+  } catch (error) {
+    console.error('Get popular videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Record video progress
+// @route   POST /api/videos/:id/progress
+// @access  Private
+const recordProgress = async (req, res) => {
+  try {
+    const { progress, duration, completed = false, deviceType = 'mobile' } = req.body;
+
+    if (!progress || !duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'Progress and duration are required'
+      });
+    }
+
+    const video = await Video.findById(req.params.id);
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Update or create progress record
+    const progressRecord = await UserProgress.findOneAndUpdate(
+      { user: req.user.id, video: req.params.id },
+      {
+        progress: Math.max(progress, 0),
+        duration,
+        completed,
+        topic: video.topic,
+        lastWatchedAt: new Date(),
+        deviceType,
+        $inc: { watchCount: 1 }
+      },
+      { upsert: true, new: true }
+    );
+
+    // Add to watch history
+    await WatchHistory.addWatchHistory(
+      req.user.id,
+      req.params.id,
+      progress,
+      completed,
+      deviceType,
+      Math.min(progress, duration) // session duration
+    );
+
+    res.status(200).json({
+      success: true,
+      data: progressRecord
+    });
+  } catch (error) {
+    console.error('Record progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get related videos
+// @route   GET /api/videos/:id/related
+// @access  Public
+const getRelatedVideos = async (req, res) => {
+  try {
+    const { limit = 5 } = req.query;
+
+    const video = await Video.findById(req.params.id).populate('topic');
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Get videos from the same topic (excluding current video)
+    const relatedVideos = await Video.find({
+      topic: video.topic._id,
+      _id: { $ne: video._id },
+      isActive: true
+    })
+    .sort({ episodeNumber: 1 })
+    .limit(parseInt(limit))
+    .populate('topic', 'title category')
+    .select('-__v');
+
+    // If not enough videos from same topic, get from same category
+    if (relatedVideos.length < limit) {
+      const remainingLimit = limit - relatedVideos.length;
+      const categoryVideos = await Video.find({
+        topic: { $ne: video.topic._id },
+        _id: { $ne: video._id },
+        isActive: true
+      })
+      .populate({
+        path: 'topic',
+        match: { category: video.topic.category },
+        select: 'title category'
+      })
+      .sort({ views: -1 })
+      .limit(remainingLimit)
+      .select('-__v');
+
+      relatedVideos.push(...categoryVideos.filter(v => v.topic));
+    }
+
+    // Add access information
+    for (let relatedVideo of relatedVideos) {
+      const hasAccess = await relatedVideo.hasAccess(req.user);
+      relatedVideo._doc.hasAccess = hasAccess;
+
+      if (!hasAccess) {
+        relatedVideo._doc.videoUrl = undefined;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      count: relatedVideos.length,
+      data: relatedVideos
+    });
+  } catch (error) {
+    console.error('Get related videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get new videos
+// @route   GET /api/videos/new
+// @access  Public
+const getNewVideos = async (req, res) => {
+  try {
+    const { since, limit = 20 } = req.query;
+
+    const query = { isActive: true };
+
+    if (since) {
+      query.createdAt = { $gte: new Date(since) };
+    } else {
+      // Default to videos from last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      query.createdAt = { $gte: thirtyDaysAgo };
+    }
+
+    const videos = await Video.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .populate('topic', 'title category')
+      .populate({
+        path: 'topic',
+        populate: {
+          path: 'category',
+          select: 'name'
+        }
+      })
+      .select('-__v');
+
+    // Add access information
+    for (let video of videos) {
+      const hasAccess = await video.hasAccess(req.user);
+      video._doc.hasAccess = hasAccess;
+
+      if (!hasAccess) {
+        video._doc.videoUrl = undefined;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      count: videos.length,
+      data: videos
+    });
+  } catch (error) {
+    console.error('Get new videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getVideos,
   getVideo,
   recordView,
   getRecommendations,
-  searchVideos
+  searchVideos,
+  getVideoStream,
+  getPopularVideos,
+  recordProgress,
+  getRelatedVideos,
+  getNewVideos
 };

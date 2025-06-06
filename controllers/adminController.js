@@ -4,6 +4,11 @@ const Topic = require('../models/Topic');
 const Video = require('../models/Video');
 const Subscription = require('../models/Subscription');
 const SubscriptionService = require('../services/subscriptionService');
+const UserProgress = require('../models/UserProgress');
+const UserFavorite = require('../models/UserFavorite');
+const UserBookmark = require('../models/UserBookmark');
+const WatchHistory = require('../models/WatchHistory');
+const Notification = require('../models/Notification');
 
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/dashboard
@@ -481,6 +486,474 @@ const getCategoryAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Get user analytics for admin
+// @route   GET /api/admin/users/:id/analytics
+// @access  Private/Admin
+const getUserAnalytics = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Get user
+    const user = await User.findById(userId).populate('subscription');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get user progress stats
+    const progressStats = await UserProgress.getUserStats(userId);
+
+    // Get favorite count
+    const favoriteCount = await UserFavorite.getUserFavoriteCount(userId);
+
+    // Get bookmark count
+    const bookmarkCount = await UserBookmark.getUserBookmarkCount(userId);
+
+    // Get watch history count
+    const watchHistoryCount = await WatchHistory.countDocuments({ user: userId });
+
+    // Get recent activity
+    const recentActivity = await WatchHistory.find({ user: userId })
+      .sort({ watchedAt: -1 })
+      .limit(10)
+      .populate('video', 'title thumbnail duration')
+      .populate({
+        path: 'video',
+        populate: {
+          path: 'topic',
+          select: 'title category',
+          populate: {
+            path: 'category',
+            select: 'name'
+          }
+        }
+      });
+
+    const analytics = {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        joinedDate: user.createdAt,
+        lastLogin: user.lastLogin,
+        isActive: user.isActive,
+        subscription: user.subscription
+      },
+      stats: {
+        videosWatched: progressStats.totalVideosWatched,
+        totalWatchTime: progressStats.totalWatchTime,
+        completedVideos: progressStats.completedVideos,
+        favoriteVideos: favoriteCount,
+        bookmarkedVideos: bookmarkCount,
+        totalSessions: watchHistoryCount
+      },
+      recentActivity
+    };
+
+    res.status(200).json({
+      success: true,
+      data: analytics
+    });
+  } catch (error) {
+    console.error('Get user analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get content performance analytics
+// @route   GET /api/admin/analytics/content
+// @access  Private/Admin
+const getContentAnalytics = async (req, res) => {
+  try {
+    // Get popular videos
+    const popularVideos = await Video.find({ isActive: true })
+      .sort({ views: -1 })
+      .limit(10)
+      .populate('topic', 'title category')
+      .populate({
+        path: 'topic',
+        populate: {
+          path: 'category',
+          select: 'name'
+        }
+      })
+      .select('title views duration likes episodeNumber createdAt');
+
+    // Get most favorited videos
+    const favoritedVideos = await UserFavorite.aggregate([
+      {
+        $group: {
+          _id: '$video',
+          favoriteCount: { $sum: 1 }
+        }
+      },
+      { $sort: { favoriteCount: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'videos',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'video'
+        }
+      },
+      { $unwind: '$video' },
+      {
+        $lookup: {
+          from: 'topics',
+          localField: 'video.topic',
+          foreignField: '_id',
+          as: 'topic'
+        }
+      },
+      { $unwind: '$topic' }
+    ]);
+
+    // Get most bookmarked videos
+    const bookmarkedVideos = await UserBookmark.aggregate([
+      {
+        $group: {
+          _id: '$video',
+          bookmarkCount: { $sum: 1 }
+        }
+      },
+      { $sort: { bookmarkCount: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'videos',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'video'
+        }
+      },
+      { $unwind: '$video' }
+    ]);
+
+    // Get category performance
+    const categoryPerformance = await Video.aggregate([
+      {
+        $lookup: {
+          from: 'topics',
+          localField: 'topic',
+          foreignField: '_id',
+          as: 'topic'
+        }
+      },
+      { $unwind: '$topic' },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'topic.category',
+          foreignField: '_id',
+          as: 'category'
+        }
+      },
+      { $unwind: '$category' },
+      {
+        $group: {
+          _id: '$category._id',
+          categoryName: { $first: '$category.name' },
+          totalVideos: { $sum: 1 },
+          totalViews: { $sum: '$views' },
+          totalLikes: { $sum: '$likes' },
+          avgDuration: { $avg: '$duration' }
+        }
+      },
+      { $sort: { totalViews: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        popularVideos,
+        favoritedVideos,
+        bookmarkedVideos,
+        categoryPerformance
+      }
+    });
+  } catch (error) {
+    console.error('Get content analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get user engagement analytics
+// @route   GET /api/admin/analytics/engagement
+// @access  Private/Admin
+const getEngagementAnalytics = async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    // Daily active users
+    const dailyActiveUsers = await WatchHistory.aggregate([
+      { $match: { watchedAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$watchedAt' } },
+            user: '$user'
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$_id.date',
+          activeUsers: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Watch time trends
+    const watchTimeTrends = await WatchHistory.aggregate([
+      { $match: { watchedAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$watchedAt' } },
+          totalWatchTime: { $sum: '$sessionDuration' },
+          totalSessions: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // User retention (users who watched videos in multiple days)
+    const userRetention = await WatchHistory.aggregate([
+      { $match: { watchedAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: '$user',
+          uniqueDays: {
+            $addToSet: { $dateToString: { format: '%Y-%m-%d', date: '$watchedAt' } }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $size: '$uniqueDays' },
+          userCount: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        dailyActiveUsers,
+        watchTimeTrends,
+        userRetention,
+        period: `${days} days`
+      }
+    });
+  } catch (error) {
+    console.error('Get engagement analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Send notification to users
+// @route   POST /api/admin/notifications/send
+// @access  Private/Admin
+const sendNotification = async (req, res) => {
+  try {
+    const { title, message, type = 'info', userIds, sendToAll = false, priority = 'medium' } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and message are required'
+      });
+    }
+
+    let targetUsers = [];
+
+    if (sendToAll) {
+      // Send to all active users
+      const users = await User.find({ isActive: true }).select('_id');
+      targetUsers = users.map(user => user._id);
+    } else if (userIds && userIds.length > 0) {
+      // Send to specific users
+      targetUsers = userIds;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Either specify userIds or set sendToAll to true'
+      });
+    }
+
+    // Create notifications for all target users
+    const notifications = targetUsers.map(userId => ({
+      user: userId,
+      title,
+      message,
+      type,
+      priority
+    }));
+
+    const createdNotifications = await Notification.insertMany(notifications);
+
+    res.status(201).json({
+      success: true,
+      message: `Notification sent to ${createdNotifications.length} users`,
+      data: {
+        notificationCount: createdNotifications.length,
+        title,
+        message,
+        type
+      }
+    });
+  } catch (error) {
+    console.error('Send notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all notifications (admin view)
+// @route   GET /api/admin/notifications
+// @access  Private/Admin
+const getNotifications = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, type, isRead } = req.query;
+
+    const query = {};
+    if (type) query.type = type;
+    if (isRead !== undefined) query.isRead = isRead === 'true';
+
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('user', 'name email')
+      .select('-__v');
+
+    const total = await Notification.countDocuments(query);
+
+    // Get notification stats
+    const stats = await Notification.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          unread: { $sum: { $cond: [{ $eq: ['$isRead', false] }, 1, 0] } },
+          byType: {
+            $push: {
+              type: '$type',
+              isRead: '$isRead'
+            }
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: notifications.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      stats: stats[0] || { total: 0, unread: 0, byType: [] },
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Get admin notifications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get notification analytics
+// @route   GET /api/admin/notifications/analytics
+// @access  Private/Admin
+const getNotificationAnalytics = async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    // Notification stats by type
+    const notificationsByType = await Notification.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 },
+          readCount: { $sum: { $cond: ['$isRead', 1, 0] } },
+          unreadCount: { $sum: { $cond: ['$isRead', 0, 1] } }
+        }
+      }
+    ]);
+
+    // Daily notification trends
+    const dailyTrends = await Notification.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          sent: { $sum: 1 },
+          read: { $sum: { $cond: ['$isRead', 1, 0] } }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Read rate by priority
+    const readRateByPriority = await Notification.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: '$priority',
+          total: { $sum: 1 },
+          read: { $sum: { $cond: ['$isRead', 1, 0] } }
+        }
+      },
+      {
+        $addFields: {
+          readRate: { $multiply: [{ $divide: ['$read', '$total'] }, 100] }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        notificationsByType,
+        dailyTrends,
+        readRateByPriority,
+        period: `${days} days`
+      }
+    });
+  } catch (error) {
+    console.error('Get notification analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -492,5 +965,11 @@ module.exports = {
   createTopic,
   updateTopic,
   createVideo,
-  updateVideo
+  updateVideo,
+  getUserAnalytics,
+  getContentAnalytics,
+  getEngagementAnalytics,
+  sendNotification,
+  getNotifications,
+  getNotificationAnalytics
 };

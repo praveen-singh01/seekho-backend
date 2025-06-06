@@ -100,6 +100,20 @@ userSchema.virtual('isSubscribed').get(function() {
   return this.subscription && this.subscription.status === 'active';
 });
 
+// Method to get active subscription
+userSchema.methods.getActiveSubscription = async function() {
+  if (!this.subscription) return null;
+
+  const Subscription = mongoose.model('Subscription');
+  const subscription = await Subscription.findById(this.subscription);
+
+  if (!subscription || subscription.status !== 'active' || subscription.endDate < new Date()) {
+    return null;
+  }
+
+  return subscription;
+};
+
 // Additional indexes for better performance
 userSchema.index({ createdAt: -1 });
 userSchema.index({ role: 1 });

@@ -3,7 +3,9 @@ const {
   getCategories,
   getCategory,
   getCategoryTopics,
-  getCategoryStats
+  getCategoryStats,
+  getCategoryComplete,
+  getCategoryUpdates
 } = require('../controllers/categoryController');
 const { optionalAuth } = require('../middleware/auth');
 const { validateObjectId, validatePagination } = require('../middleware/validation');
@@ -57,6 +59,16 @@ const router = express.Router();
  *                         $ref: '#/components/schemas/Category'
  */
 router.get('/', validatePagination, optionalAuth, getCategories);
+
+// @route   GET /api/categories/:id/complete
+// @desc    Get complete category data (topics, videos, stats)
+// @access  Public
+router.get('/:id/complete', validateObjectId(), optionalAuth, getCategoryComplete);
+
+// @route   GET /api/categories/:id/updates
+// @desc    Get category updates (new content)
+// @access  Public
+router.get('/:id/updates', validateObjectId(), getCategoryUpdates);
 
 // @route   GET /api/categories/:id
 // @desc    Get single category

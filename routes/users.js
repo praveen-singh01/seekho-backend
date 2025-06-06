@@ -1,60 +1,82 @@
 const express = require('express');
 const { protect } = require('../middleware/auth');
 const { validateObjectId } = require('../middleware/validation');
+const {
+  getWatchHistory,
+  addFavorite,
+  removeFavorite,
+  getFavorites,
+  getProfile,
+  updateProfile,
+  getUserStats,
+  addBookmark,
+  removeBookmark,
+  getBookmarks
+} = require('../controllers/userController');
 const User = require('../models/User');
 const Video = require('../models/Video');
 
 const router = express.Router();
 
-// @route   GET /api/users/me
-// @desc    Get current user profile
+// @route   GET /api/users/profile
+// @desc    Get user profile
 // @access  Private
-router.get('/me', protect, async (req, res) => {
-  try {
-    const user = await req.user.populate('subscription');
-    
-    res.status(200).json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    console.error('Get user profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+router.get('/profile', protect, getProfile);
+
+// @route   PUT /api/users/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', protect, updateProfile);
+
+// @route   GET /api/users/stats
+// @desc    Get user statistics
+// @access  Private
+router.get('/stats', protect, getUserStats);
+
+// @route   GET /api/users/watch-history
+// @desc    Get user watch history
+// @access  Private
+router.get('/watch-history', protect, getWatchHistory);
+
+// @route   POST /api/users/favorites
+// @desc    Add video to favorites
+// @access  Private
+router.post('/favorites', protect, addFavorite);
+
+// @route   DELETE /api/users/favorites/:videoId
+// @desc    Remove video from favorites
+// @access  Private
+router.delete('/favorites/:videoId', protect, validateObjectId('videoId'), removeFavorite);
+
+// @route   GET /api/users/favorites
+// @desc    Get user favorites
+// @access  Private
+router.get('/favorites', protect, getFavorites);
+
+// @route   POST /api/users/bookmarks
+// @desc    Add video to bookmarks
+// @access  Private
+router.post('/bookmarks', protect, addBookmark);
+
+// @route   DELETE /api/users/bookmarks/:videoId
+// @desc    Remove video from bookmarks
+// @access  Private
+router.delete('/bookmarks/:videoId', protect, validateObjectId('videoId'), removeBookmark);
+
+// @route   GET /api/users/bookmarks
+// @desc    Get user bookmarks
+// @access  Private
+router.get('/bookmarks', protect, getBookmarks);
+
+// @route   GET /api/users/me
+// @desc    Get current user profile (legacy endpoint)
+// @access  Private
+router.get('/me', protect, getProfile);
 
 // @route   PUT /api/users/me
-// @desc    Update current user profile
+// @desc    Update current user profile (legacy endpoint)
 // @access  Private
-router.put('/me', protect, async (req, res) => {
-  try {
-    const { name, preferences } = req.body;
-    
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (preferences) updateData.preferences = { ...req.user.preferences, ...preferences };
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    res.status(200).json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    console.error('Update user profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+router.put('/me', protect, updateProfile);
 
 // @route   GET /api/users/me/videos/:videoId/unlock
 // @desc    Check if user can access a specific video

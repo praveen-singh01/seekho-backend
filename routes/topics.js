@@ -3,7 +3,8 @@ const {
   getTopics,
   getTopic,
   getTopicVideos,
-  getTopicProgress
+  getTopicProgress,
+  getRelatedTopics
 } = require('../controllers/topicController');
 const { protect, optionalAuth } = require('../middleware/auth');
 const { validateObjectId, validatePagination } = require('../middleware/validation');
@@ -19,6 +20,11 @@ router.get('/', validatePagination, optionalAuth, getTopics);
 // @desc    Get single topic
 // @access  Public
 router.get('/:id', validateObjectId(), optionalAuth, getTopic);
+
+// @route   GET /api/topics/:id/related
+// @desc    Get related topics
+// @access  Public
+router.get('/:id/related', validateObjectId(), optionalAuth, getRelatedTopics);
 
 // @route   GET /api/topics/:id/videos
 // @desc    Get videos in a topic

@@ -10,7 +10,13 @@ const {
   createTopic,
   updateTopic,
   createVideo,
-  updateVideo
+  updateVideo,
+  getUserAnalytics,
+  getContentAnalytics,
+  getEngagementAnalytics,
+  sendNotification,
+  getNotifications,
+  getNotificationAnalytics
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 const { 
@@ -171,6 +177,38 @@ router.put('/categories/reorder', reorderCategories);
  *         description: Category not found
  */
 router.get('/categories/:id/analytics', validateObjectId(), getCategoryAnalytics);
+
+// Analytics routes
+// @route   GET /api/admin/users/:id/analytics
+// @desc    Get user analytics
+// @access  Private/Admin
+router.get('/users/:id/analytics', validateObjectId(), getUserAnalytics);
+
+// @route   GET /api/admin/analytics/content
+// @desc    Get content performance analytics
+// @access  Private/Admin
+router.get('/analytics/content', getContentAnalytics);
+
+// @route   GET /api/admin/analytics/engagement
+// @desc    Get user engagement analytics
+// @access  Private/Admin
+router.get('/analytics/engagement', getEngagementAnalytics);
+
+// Notification management routes
+// @route   POST /api/admin/notifications/send
+// @desc    Send notification to users
+// @access  Private/Admin
+router.post('/notifications/send', sendNotification);
+
+// @route   GET /api/admin/notifications
+// @desc    Get all notifications (admin view)
+// @access  Private/Admin
+router.get('/notifications', validatePagination, getNotifications);
+
+// @route   GET /api/admin/notifications/analytics
+// @desc    Get notification analytics
+// @access  Private/Admin
+router.get('/notifications/analytics', getNotificationAnalytics);
 
 // Topic management routes
 // @route   POST /api/admin/topics

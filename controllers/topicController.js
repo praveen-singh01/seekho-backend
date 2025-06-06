@@ -273,9 +273,57 @@ const getTopicProgress = async (req, res) => {
   }
 };
 
+// @desc    Get related topics
+// @route   GET /api/topics/:id/related
+// @access  Public
+const getRelatedTopics = async (req, res) => {
+  try {
+    const { limit = 5 } = req.query;
+
+    const topic = await Topic.findById(req.params.id);
+    if (!topic || !topic.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Topic not found'
+      });
+    }
+
+    // Get topics from the same category (excluding current topic)
+    const relatedTopics = await Topic.find({
+      category: topic.category,
+      _id: { $ne: topic._id },
+      isActive: true
+    })
+    .sort({ order: 1, 'metadata.totalVideos': -1 })
+    .limit(parseInt(limit))
+    .populate('category', 'name')
+    .select('-__v');
+
+    // Add access information if user is authenticated
+    if (req.user) {
+      relatedTopics.forEach(relatedTopic => {
+        relatedTopic._doc.hasAccess = relatedTopic.hasAccess(req.user);
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: relatedTopics.length,
+      data: relatedTopics
+    });
+  } catch (error) {
+    console.error('Get related topics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getTopics,
   getTopic,
   getTopicVideos,
-  getTopicProgress
+  getTopicProgress,
+  getRelatedTopics
 };
