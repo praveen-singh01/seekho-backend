@@ -63,10 +63,16 @@ const uploadToS3 = async (file, folder = 'uploads') => {
 
   try {
     const result = await s3.upload(params).promise();
+
+    // Use CloudFront URL instead of direct S3 URL
+    const cloudFrontUrl = process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN
+      ? `https://${process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN}/${result.Key}`
+      : result.Location;
+
     return {
       success: true,
       data: {
-        url: result.Location,
+        url: cloudFrontUrl,
         key: result.Key,
         size: file.size,
         mimetype: file.mimetype
@@ -183,16 +189,23 @@ const listFiles = async (prefix = '', maxKeys = 1000) => {
       Prefix: prefix,
       MaxKeys: maxKeys
     };
-    
+
     const data = await s3.listObjectsV2(params).promise();
     return {
       success: true,
-      files: data.Contents.map(file => ({
-        key: file.Key,
-        size: file.Size,
-        lastModified: file.LastModified,
-        url: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.Key}`
-      }))
+      files: data.Contents.map(file => {
+        // Use CloudFront URL instead of direct S3 URL
+        const url = process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN
+          ? `https://${process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN}/${file.Key}`
+          : `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.Key}`;
+
+        return {
+          key: file.Key,
+          size: file.Size,
+          lastModified: file.LastModified,
+          url: url
+        };
+      })
     };
   } catch (error) {
     console.error('S3 list files error:', error);

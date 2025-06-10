@@ -16,7 +16,11 @@ const {
   getEngagementAnalytics,
   sendNotification,
   getNotifications,
-  getNotificationAnalytics
+  getNotificationAnalytics,
+  getCloudFrontStatus,
+  testCloudFrontUrl,
+  invalidateCloudFrontCache,
+  convertVideosToCloudFront
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 const { 
@@ -231,6 +235,136 @@ router.post('/videos', validateVideo, createVideo);
 // @desc    Update video
 // @access  Private/Admin
 router.put('/videos/:id', validateObjectId(), validateVideo, updateVideo);
+
+// CloudFront management routes
+
+/**
+ * @swagger
+ * /api/admin/cloudfront/status:
+ *   get:
+ *     summary: Get CloudFront configuration status
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CloudFront status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     isConfigured:
+ *                       type: boolean
+ *                     distributionDomain:
+ *                       type: string
+ *                     keyPairId:
+ *                       type: string
+ *                     hasPrivateKey:
+ *                       type: boolean
+ *                     message:
+ *                       type: string
+ */
+router.get('/cloudfront/status', getCloudFrontStatus);
+
+/**
+ * @swagger
+ * /api/admin/cloudfront/test-url:
+ *   post:
+ *     summary: Test CloudFront signed URL generation
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - s3Key
+ *             properties:
+ *               s3Key:
+ *                 type: string
+ *                 example: "videos/sample-video.mp4"
+ *               expiresIn:
+ *                 type: number
+ *                 example: 3600
+ *                 description: Expiration time in seconds
+ *     responses:
+ *       200:
+ *         description: Signed URL generated successfully
+ *       400:
+ *         description: CloudFront not configured or invalid request
+ */
+router.post('/cloudfront/test-url', testCloudFrontUrl);
+
+/**
+ * @swagger
+ * /api/admin/cloudfront/invalidate:
+ *   post:
+ *     summary: Invalidate CloudFront cache for specific paths
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paths
+ *             properties:
+ *               paths:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["videos/video1.mp4", "thumbnails/thumb1.jpg"]
+ *     responses:
+ *       200:
+ *         description: Cache invalidation initiated successfully
+ *       400:
+ *         description: CloudFront not configured or invalid request
+ */
+router.post('/cloudfront/invalidate', invalidateCloudFrontCache);
+
+/**
+ * @swagger
+ * /api/admin/videos/convert-to-cloudfront:
+ *   post:
+ *     summary: Convert existing video URLs to CloudFront
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               videoIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Specific video IDs to convert (optional)
+ *               dryRun:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Test conversion without making changes
+ *     responses:
+ *       200:
+ *         description: Conversion completed successfully
+ *       400:
+ *         description: CloudFront not configured
+ */
+router.post('/videos/convert-to-cloudfront', convertVideosToCloudFront);
 
 // Additional admin routes for content management
 

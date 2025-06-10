@@ -84,13 +84,24 @@ const getVideos = async (req, res) => {
     const total = await Video.countDocuments(query);
 
     // Add access information and filter sensitive data
+    const { convertS3ToCloudFront, isCloudFrontConfigured } = require('../services/cloudfrontService');
+
     for (let video of videos) {
       const hasAccess = await video.hasAccess(req.user);
       video._doc.hasAccess = hasAccess;
-      
-      // Hide video URL if no access
+
+      // Convert thumbnail to CloudFront URL if configured (public URLs for thumbnails)
+      if (video.thumbnail && isCloudFrontConfigured()) {
+        video._doc.thumbnail = convertS3ToCloudFront(video.thumbnail, 86400, false); // 24 hours, public
+      }
+
+      // Hide video URL if no access, otherwise convert to CloudFront
       if (!hasAccess) {
         video._doc.videoUrl = undefined;
+      } else if (isCloudFrontConfigured()) {
+        // Use signed URLs for premium content, public for free content
+        const needsSignedUrl = video.isLocked && !video.isFree;
+        video._doc.videoUrl = convertS3ToCloudFront(video.videoUrl, 14400, needsSignedUrl); // 4 hours for videos
       }
     }
 
@@ -351,6 +362,8 @@ const searchVideos = async (req, res) => {
 // @access  Private (requires access to video)
 const getVideoStream = async (req, res) => {
   try {
+    const { generateSignedUrl, generateQualityUrls, convertS3ToCloudFront, isCloudFrontConfigured } = require('../services/cloudfrontService');
+
     const video = await Video.findById(req.params.id)
       .populate('topic', 'title category isPremium')
       .populate({
@@ -377,21 +390,60 @@ const getVideoStream = async (req, res) => {
       });
     }
 
-    // Generate streaming URL (in production, this would be a signed URL from CDN)
-    const streamUrl = video.videoUrl;
+    // Generate CloudFront URL for video streaming
+    let streamUrl;
+    let qualityUrls = {};
 
-    // Get available qualities (this would come from video processing service)
-    const qualities = ['720p', '480p', '360p'];
+    if (isCloudFrontConfigured()) {
+      // Determine if we need signed URLs (for premium content)
+      const needsSignedUrl = video.isLocked && !video.isFree;
+
+      // Convert S3 URL to CloudFront URL (signed for premium, public for free)
+      streamUrl = convertS3ToCloudFront(video.videoUrl, 14400, needsSignedUrl);
+
+      // Extract S3 key from video URL for quality variants
+      try {
+        const url = new URL(video.videoUrl);
+        const s3Key = url.pathname.substring(1); // Remove leading slash
+
+        // Generate quality-specific URLs (if they exist)
+        qualityUrls = generateQualityUrls(s3Key, ['1080p', '720p', '480p', '360p'], 14400);
+      } catch (error) {
+        console.error('Error generating quality URLs:', error);
+      }
+    } else {
+      // Fallback to direct S3 URL
+      streamUrl = video.videoUrl;
+      console.warn('CloudFront not configured, using direct S3 URL');
+    }
+
+    // Get available qualities
+    const qualities = Object.keys(qualityUrls).length > 0 ? Object.keys(qualityUrls) : ['720p', '480p', '360p'];
+
+    // Generate CloudFront URL for thumbnail if available
+    let thumbnailUrl = video.thumbnail;
+    if (video.thumbnail && isCloudFrontConfigured()) {
+      // Thumbnails can be public (no need for signed URLs)
+      thumbnailUrl = convertS3ToCloudFront(video.thumbnail, 86400, false); // 24 hours, public
+    }
 
     res.status(200).json({
       success: true,
       data: {
         streamUrl,
+        qualityUrls: Object.keys(qualityUrls).length > 0 ? qualityUrls : { [video.quality || '720p']: streamUrl },
         qualities,
         duration: video.duration,
         subtitles: video.subtitles || [],
-        thumbnail: video.thumbnail,
-        title: video.title
+        thumbnail: thumbnailUrl,
+        title: video.title,
+        metadata: {
+          isCloudFrontEnabled: isCloudFrontConfigured(),
+          quality: video.quality,
+          fileSize: video.fileSize,
+          encoding: video.metadata?.encoding,
+          resolution: video.metadata?.resolution
+        }
       }
     });
   } catch (error) {

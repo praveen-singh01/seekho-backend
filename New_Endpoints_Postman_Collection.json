@@ -1,0 +1,1459 @@
+{
+  "info": {
+    "name": "Seekho Backend - Complete API Collection",
+    "description": "Complete collection including user endpoints, admin analytics, and notification management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "sample_category_id",
+      "value": "673b8b8b8b8b8b8b8b8b8b8b",
+      "type": "string"
+    },
+    {
+      "key": "sample_video_id",
+      "value": "673b8b8b8b8b8b8b8b8b8b8b",
+      "type": "string"
+    },
+    {
+      "key": "sample_topic_id",
+      "value": "673b8b8b8b8b8b8b8b8b8b8b",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "YOUR_ADMIN_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "sample_user_id",
+      "value": "673b8b8b8b8b8b8b8b8b8b8b",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Critical Priority",
+      "item": [
+        {
+          "name": "Get Complete Category Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{sample_category_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{sample_category_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Stream URL",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/videos/{{sample_video_id}}/stream",
+              "host": ["{{base_url}}"],
+              "path": ["videos", "{{sample_video_id}}", "stream"]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/videos/popular?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["videos", "popular"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get New Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/videos/new?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["videos", "new"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "High Priority",
+      "item": [
+        {
+          "name": "Record Video Progress",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 450,\n  \"duration\": 1800,\n  \"completed\": false,\n  \"deviceType\": \"mobile\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/videos/{{sample_video_id}}/progress",
+              "host": ["{{base_url}}"],
+              "path": ["videos", "{{sample_video_id}}", "progress"]
+            }
+          }
+        },
+        {
+          "name": "Get Watch History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/watch-history?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users", "watch-history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add to Favorites",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{sample_video_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/favorites",
+              "host": ["{{base_url}}"],
+              "path": ["users", "favorites"]
+            }
+          }
+        },
+        {
+          "name": "Get Favorites",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/favorites?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users", "favorites"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove from Favorites",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/favorites/{{sample_video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "favorites", "{{sample_video_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Medium Priority",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"username\": \"newusername\",\n  \"preferences\": {\n    \"language\": \"en\",\n    \"notifications\": {\n      \"email\": true,\n      \"push\": false\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/stats",
+              "host": ["{{base_url}}"],
+              "path": ["users", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Add Bookmark",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{sample_video_id}}\",\n  \"note\": \"Important concept to review\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/bookmarks",
+              "host": ["{{base_url}}"],
+              "path": ["users", "bookmarks"]
+            }
+          }
+        },
+        {
+          "name": "Get Bookmarks",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/bookmarks?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users", "bookmarks"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Bookmark",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/bookmarks/{{sample_video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "bookmarks", "{{sample_video_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Related Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/videos/{{sample_video_id}}/related?limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["videos", "{{sample_video_id}}", "related"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Related Topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/topics/{{sample_topic_id}}/related?limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["topics", "{{sample_topic_id}}", "related"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Low Priority",
+      "item": [
+        {
+          "name": "Get Category Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{sample_category_id}}/updates?since=2024-01-01",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{sample_category_id}}", "updates"],
+              "query": [
+                {
+                  "key": "since",
+                  "value": "2024-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Notifications",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notifications as Read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notificationIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications/mark-read",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "mark-read"]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "unread-count"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Analytics & Management",
+      "item": [
+        {
+          "name": "Admin Authentication",
+          "item": [
+            {
+              "name": "Admin Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/admin/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "admin", "login"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Analytics",
+          "item": [
+            {
+              "name": "Get User Analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/users/{{sample_user_id}}/analytics",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "users", "{{sample_user_id}}", "analytics"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Content Analytics",
+          "item": [
+            {
+              "name": "Get Content Performance Analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/analytics/content",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "analytics", "content"]
+                }
+              }
+            },
+            {
+              "name": "Get User Engagement Analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/analytics/engagement?days=30",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "analytics", "engagement"],
+                  "query": [
+                    {
+                      "key": "days",
+                      "value": "30"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notification Management",
+          "item": [
+            {
+              "name": "Send Notification to All Users",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Course Available!\",\n  \"message\": \"Check out our latest course on Advanced JavaScript\",\n  \"type\": \"new_content\",\n  \"sendToAll\": true,\n  \"priority\": \"medium\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/notifications/send",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "notifications", "send"]
+                }
+              }
+            },
+            {
+              "name": "Send Notification to Specific Users",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Premium Feature Update\",\n  \"message\": \"Your premium subscription includes new features\",\n  \"type\": \"subscription\",\n  \"sendToAll\": false,\n  \"userIds\": [\"{{sample_user_id}}\"],\n  \"priority\": \"high\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/notifications/send",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "notifications", "send"]
+                }
+              }
+            },
+            {
+              "name": "Get All Notifications (Admin View)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/notifications?page=1&limit=20&type=&isRead=",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "notifications"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "type",
+                      "value": ""
+                    },
+                    {
+                      "key": "isRead",
+                      "value": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Notification Analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/notifications/analytics?days=30",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "notifications", "analytics"],
+                  "query": [
+                    {
+                      "key": "days",
+                      "value": "30"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Dashboard & Users",
+          "item": [
+            {
+              "name": "Get Admin Dashboard",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/dashboard",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "dashboard"]
+                }
+              }
+            },
+            {
+              "name": "Get All Users (Admin)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/users?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "users"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Content Management",
+          "item": [
+            {
+              "name": "Get Categories (Admin)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "categories"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Category",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"New Category\",\n  \"description\": \"Description of the new category\",\n  \"difficulty\": \"beginner\",\n  \"isPremium\": false,\n  \"order\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/categories",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "categories"]
+                }
+              }
+            },
+            {
+              "name": "Update Category",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated Category Name\",\n  \"description\": \"Updated description\",\n  \"difficulty\": \"intermediate\",\n  \"isPremium\": true\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/categories/{{sample_category_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "categories", "{{sample_category_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Create Topic",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Topic\",\n  \"description\": \"Description of the new topic\",\n  \"category\": \"{{sample_category_id}}\",\n  \"difficulty\": \"beginner\",\n  \"isPremium\": false,\n  \"order\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/topics",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "topics"]
+                }
+              }
+            },
+            {
+              "name": "Update Topic",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Topic Title\",\n  \"description\": \"Updated description\",\n  \"difficulty\": \"advanced\",\n  \"isPremium\": true\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/topics/{{sample_topic_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "topics", "{{sample_topic_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Create Video",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Video\",\n  \"description\": \"Description of the new video\",\n  \"topic\": \"{{sample_topic_id}}\",\n  \"videoUrl\": \"https://example.com/video.mp4\",\n  \"duration\": 600,\n  \"order\": 1,\n  \"isFree\": true\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/videos",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "videos"]
+                }
+              }
+            },
+            {
+              "name": "Update Video",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Video Title\",\n  \"description\": \"Updated description\",\n  \"duration\": 720,\n  \"isFree\": false\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/videos/{{sample_video_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "videos", "{{sample_video_id}}"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Content Management (Delete)",
+          "item": [
+            {
+              "name": "Delete Category",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories/{{sample_category_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "categories", "{{sample_category_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Delete Topic",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/topics/{{sample_topic_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "topics", "{{sample_topic_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Delete Video",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/videos/{{sample_video_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "videos", "{{sample_video_id}}"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Public Content Endpoints",
+      "item": [
+        {
+          "name": "Categories",
+          "item": [
+            {
+              "name": "Get All Categories",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/categories?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["categories"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Single Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/categories/{{sample_category_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["categories", "{{sample_category_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get Category Topics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/categories/{{sample_category_id}}/topics?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["categories", "{{sample_category_id}}", "topics"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Topics",
+          "item": [
+            {
+              "name": "Get All Topics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/topics?page=1&limit=20&category=&difficulty=",
+                  "host": ["{{base_url}}"],
+                  "path": ["topics"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "category",
+                      "value": ""
+                    },
+                    {
+                      "key": "difficulty",
+                      "value": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Single Topic",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/topics/{{sample_topic_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["topics", "{{sample_topic_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get Topic Videos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/topics/{{sample_topic_id}}/videos?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["topics", "{{sample_topic_id}}", "videos"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Topic Progress",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/topics/{{sample_topic_id}}/progress",
+                  "host": ["{{base_url}}"],
+                  "path": ["topics", "{{sample_topic_id}}", "progress"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Videos",
+          "item": [
+            {
+              "name": "Get All Videos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/videos?page=1&limit=20&topic=",
+                  "host": ["{{base_url}}"],
+                  "path": ["videos"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "topic",
+                      "value": ""
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Single Video",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/videos/{{sample_video_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["videos", "{{sample_video_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Search Videos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/videos/search?q=javascript&page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["videos", "search"],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "javascript"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Record Video View",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deviceType\": \"web\",\n  \"userAgent\": \"Mozilla/5.0...\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/videos/{{sample_video_id}}/view",
+                  "host": ["{{base_url}}"],
+                  "path": ["videos", "{{sample_video_id}}", "view"]
+                }
+              }
+            },
+            {
+              "name": "Get Video Recommendations",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/videos/{{sample_video_id}}/recommendations?limit=5",
+                  "host": ["{{base_url}}"],
+                  "path": ["videos", "{{sample_video_id}}", "recommendations"],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "5"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -133,28 +133,43 @@ router.post('/category-thumbnail', authorize('admin'), async (req, res, next) =>
  *         $ref: '#/components/responses/BadRequest'
  */
 router.post('/topic-thumbnail', authorize('admin'), (req, res, next) => {
-  uploads.topicThumbnail(req, res, (err) => {
+  uploads.topicThumbnail(req, res, async (err) => {
     if (err) {
       return handleUploadError(err, req, res, next);
     }
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Topic thumbnail uploaded successfully',
-      data: {
-        url: req.file.location,
-        key: req.file.key,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+
+    try {
+      // Upload file to S3
+      const uploadResult = await uploadToS3(req.file, 'topics');
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload topic thumbnail to S3',
+          error: uploadResult.error
+        });
       }
-    });
+
+      res.status(200).json({
+        success: true,
+        message: 'Topic thumbnail uploaded successfully',
+        data: uploadResult.data
+      });
+    } catch (error) {
+      console.error('Topic thumbnail upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during upload',
+        error: error.message
+      });
+    }
   });
 });
 
@@ -184,28 +199,43 @@ router.post('/topic-thumbnail', authorize('admin'), (req, res, next) => {
  *         $ref: '#/components/responses/BadRequest'
  */
 router.post('/video', authorize('admin'), (req, res, next) => {
-  uploads.videoFile(req, res, (err) => {
+  uploads.videoFile(req, res, async (err) => {
     if (err) {
       return handleUploadError(err, req, res, next);
     }
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No video file uploaded'
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Video uploaded successfully',
-      data: {
-        url: req.file.location,
-        key: req.file.key,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+
+    try {
+      // Upload file to S3
+      const uploadResult = await uploadToS3(req.file, 'videos');
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload video to S3',
+          error: uploadResult.error
+        });
       }
-    });
+
+      res.status(200).json({
+        success: true,
+        message: 'Video uploaded successfully',
+        data: uploadResult.data
+      });
+    } catch (error) {
+      console.error('Video upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during upload',
+        error: error.message
+      });
+    }
   });
 });
 
@@ -232,28 +262,43 @@ router.post('/video', authorize('admin'), (req, res, next) => {
  *         description: Thumbnail uploaded successfully
  */
 router.post('/video-thumbnail', authorize('admin'), (req, res, next) => {
-  uploads.videoThumbnail(req, res, (err) => {
+  uploads.videoThumbnail(req, res, async (err) => {
     if (err) {
       return handleUploadError(err, req, res, next);
     }
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No thumbnail uploaded'
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Video thumbnail uploaded successfully',
-      data: {
-        url: req.file.location,
-        key: req.file.key,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+
+    try {
+      // Upload file to S3
+      const uploadResult = await uploadToS3(req.file, 'thumbnails');
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload thumbnail to S3',
+          error: uploadResult.error
+        });
       }
-    });
+
+      res.status(200).json({
+        success: true,
+        message: 'Video thumbnail uploaded successfully',
+        data: uploadResult.data
+      });
+    } catch (error) {
+      console.error('Thumbnail upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during upload',
+        error: error.message
+      });
+    }
   });
 });
 
@@ -280,28 +325,43 @@ router.post('/video-thumbnail', authorize('admin'), (req, res, next) => {
  *         description: Avatar uploaded successfully
  */
 router.post('/avatar', (req, res, next) => {
-  uploads.userAvatar(req, res, (err) => {
+  uploads.userAvatar(req, res, async (err) => {
     if (err) {
       return handleUploadError(err, req, res, next);
     }
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: 'No avatar uploaded'
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Avatar uploaded successfully',
-      data: {
-        url: req.file.location,
-        key: req.file.key,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+
+    try {
+      // Upload file to S3
+      const uploadResult = await uploadToS3(req.file, 'avatars');
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload avatar to S3',
+          error: uploadResult.error
+        });
       }
-    });
+
+      res.status(200).json({
+        success: true,
+        message: 'Avatar uploaded successfully',
+        data: uploadResult.data
+      });
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during upload',
+        error: error.message
+      });
+    }
   });
 });
 

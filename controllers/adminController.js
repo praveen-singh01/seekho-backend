@@ -9,6 +9,8 @@ const UserFavorite = require('../models/UserFavorite');
 const UserBookmark = require('../models/UserBookmark');
 const WatchHistory = require('../models/WatchHistory');
 const Notification = require('../models/Notification');
+const { uploadToS3, deleteFile } = require('../services/uploadService');
+const { convertS3ToCloudFront, invalidateCache, isCloudFrontConfigured, isSignedUrlConfigured, generateSignedUrl, generateCloudFrontUrl } = require('../services/cloudfrontService');
 
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/dashboard
@@ -954,6 +956,225 @@ const getNotificationAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Get CloudFront configuration status
+// @route   GET /api/admin/cloudfront/status
+// @access  Private/Admin
+const getCloudFrontStatus = async (req, res) => {
+  try {
+    const isConfigured = isCloudFrontConfigured();
+    const canGenerateSignedUrls = isSignedUrlConfigured();
+
+    // Test URL generation with your CloudFront domain
+    let testUrls = {};
+    if (isConfigured) {
+      try {
+        // Test with a sample file path like your example
+        testUrls.publicUrl = generateCloudFrontUrl('categories/Cyberpunk city.mp4', 3600, false);
+        if (canGenerateSignedUrls) {
+          testUrls.signedUrl = generateCloudFrontUrl('categories/Cyberpunk city.mp4', 3600, true);
+        }
+      } catch (error) {
+        console.error('Error generating test URLs:', error);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isConfigured,
+        canGenerateSignedUrls,
+        distributionDomain: process.env.CLOUDFRONT_DISTRIBUTION_DOMAIN || null,
+        keyPairId: process.env.CLOUDFRONT_KEY_PAIR_ID || null,
+        hasPrivateKey: !!(process.env.CLOUDFRONT_PRIVATE_KEY_BASE64 || process.env.CLOUDFRONT_PRIVATE_KEY_PATH),
+        testUrls,
+        message: isConfigured ?
+          (canGenerateSignedUrls ? 'CloudFront is fully configured with signed URLs' : 'CloudFront configured for public URLs only') :
+          'CloudFront configuration incomplete'
+      }
+    });
+  } catch (error) {
+    console.error('Get CloudFront status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Test CloudFront signed URL generation
+// @route   POST /api/admin/cloudfront/test-url
+// @access  Private/Admin
+const testCloudFrontUrl = async (req, res) => {
+  try {
+    const { s3Key, expiresIn = 3600 } = req.body;
+
+    if (!s3Key) {
+      return res.status(400).json({
+        success: false,
+        message: 'S3 key is required'
+      });
+    }
+
+    if (!isCloudFrontConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'CloudFront is not properly configured'
+      });
+    }
+
+    const signedUrl = generateSignedUrl(s3Key, expiresIn);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        s3Key,
+        signedUrl,
+        expiresIn,
+        expiresAt: new Date(Date.now() + (expiresIn * 1000)).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Test CloudFront URL error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Invalidate CloudFront cache for specific paths
+// @route   POST /api/admin/cloudfront/invalidate
+// @access  Private/Admin
+const invalidateCloudFrontCache = async (req, res) => {
+  try {
+    const { paths } = req.body;
+
+    if (!paths || !Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Paths array is required'
+      });
+    }
+
+    if (!isCloudFrontConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'CloudFront is not properly configured'
+      });
+    }
+
+    const result = await invalidateCache(paths);
+
+    if (result.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Cache invalidation initiated',
+        data: {
+          invalidationId: result.invalidationId,
+          paths
+        }
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message || 'Cache invalidation failed',
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('CloudFront cache invalidation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Convert existing video URLs to CloudFront
+// @route   POST /api/admin/videos/convert-to-cloudfront
+// @access  Private/Admin
+const convertVideosToCloudFront = async (req, res) => {
+  try {
+    if (!isCloudFrontConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'CloudFront is not properly configured'
+      });
+    }
+
+    const { videoIds, dryRun = false } = req.body;
+
+    let query = {};
+    if (videoIds && Array.isArray(videoIds)) {
+      query._id = { $in: videoIds };
+    }
+
+    const videos = await Video.find(query).select('_id title videoUrl thumbnail');
+    const results = [];
+
+    for (const video of videos) {
+      try {
+        const originalVideoUrl = video.videoUrl;
+        const originalThumbnailUrl = video.thumbnail;
+
+        // Convert URLs to CloudFront
+        const cloudFrontVideoUrl = convertS3ToCloudFront(originalVideoUrl, 14400);
+        const cloudFrontThumbnailUrl = originalThumbnailUrl ?
+          convertS3ToCloudFront(originalThumbnailUrl, 86400) : null;
+
+        const result = {
+          videoId: video._id,
+          title: video.title,
+          original: {
+            videoUrl: originalVideoUrl,
+            thumbnailUrl: originalThumbnailUrl
+          },
+          cloudfront: {
+            videoUrl: cloudFrontVideoUrl,
+            thumbnailUrl: cloudFrontThumbnailUrl
+          }
+        };
+
+        if (!dryRun) {
+          // Note: We don't actually update the database URLs since we convert them on-the-fly
+          // This is just for testing the conversion process
+          result.status = 'converted';
+        } else {
+          result.status = 'dry-run';
+        }
+
+        results.push(result);
+      } catch (error) {
+        results.push({
+          videoId: video._id,
+          title: video.title,
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${dryRun ? 'Dry run completed' : 'Conversion completed'}`,
+      data: {
+        totalVideos: videos.length,
+        results,
+        summary: {
+          successful: results.filter(r => r.status === 'converted' || r.status === 'dry-run').length,
+          failed: results.filter(r => r.status === 'error').length
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Convert videos to CloudFront error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -971,5 +1192,9 @@ module.exports = {
   getEngagementAnalytics,
   sendNotification,
   getNotifications,
-  getNotificationAnalytics
+  getNotificationAnalytics,
+  getCloudFrontStatus,
+  testCloudFrontUrl,
+  invalidateCloudFrontCache,
+  convertVideosToCloudFront
 };
