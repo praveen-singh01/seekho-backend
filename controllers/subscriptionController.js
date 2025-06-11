@@ -94,13 +94,20 @@ const createOrder = async (req, res) => {
         });
       }
 
+      // Return the response structure expected by frontend
       res.status(200).json({
         success: true,
         data: {
-          subscription: result.subscription,
-          razorpaySubscription: result.razorpaySubscription,
+          orderId: result.razorpaySubscription?.id || result.subscription.razorpaySubscriptionId,
+          amount: result.subscription.amount,
+          currency: result.subscription.currency,
+          plan: result.subscription.plan,
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'recurring'
+          type: 'recurring',
+          subscriptionDetails: {
+            subscriptionId: result.subscription._id,
+            customerId: result.subscription.razorpayCustomerId
+          }
         }
       });
     }
