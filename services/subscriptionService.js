@@ -88,7 +88,7 @@ class SubscriptionService {
       const subscription = await Subscription.create({
         user: userId,
         plan,
-        status: 'active',
+        status: 'pending',
         startDate,
         endDate,
         amount,
@@ -103,7 +103,6 @@ class SubscriptionService {
         isRecurring: true,
         autoRenew: true,
         nextBillingDate,
-        lastSuccessfulPayment: new Date(),
         metadata: {
           customerEmail: customerData.email,
           customerPhone: customerData.phone
@@ -127,6 +126,53 @@ class SubscriptionService {
     }
   }
 
+  // Activate pending recurring subscription after payment
+  static async activateRecurringSubscription(userId, razorpaySubscriptionId, paymentData) {
+    try {
+      const subscription = await Subscription.findOne({
+        user: userId,
+        razorpaySubscriptionId: razorpaySubscriptionId,
+        status: 'pending'
+      });
+
+      if (!subscription) {
+        return {
+          success: false,
+          error: 'Pending subscription not found'
+        };
+      }
+
+      // Update subscription to active
+      subscription.status = 'active';
+      subscription.lastSuccessfulPayment = new Date();
+      if (paymentData.paymentId) {
+        subscription.paymentId = paymentData.paymentId;
+      }
+      if (paymentData.orderId) {
+        subscription.orderId = paymentData.orderId;
+      }
+      if (paymentData.signature) {
+        subscription.signature = paymentData.signature;
+      }
+
+      await subscription.save();
+
+      // Update user's subscription reference
+      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+
+      return {
+        success: true,
+        subscription
+      };
+    } catch (error) {
+      console.error('Activate recurring subscription error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Get user's active subscription
   static async getUserSubscription(userId) {
     try {
@@ -142,6 +188,30 @@ class SubscriptionService {
       };
     } catch (error) {
       console.error('Get subscription error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Clean up pending subscriptions (for maintenance)
+  static async cleanupPendingSubscriptions() {
+    try {
+      // Remove pending subscriptions older than 1 hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      const result = await Subscription.deleteMany({
+        status: 'pending',
+        createdAt: { $lt: oneHourAgo }
+      });
+
+      return {
+        success: true,
+        deletedCount: result.deletedCount
+      };
+    } catch (error) {
+      console.error('Cleanup pending subscriptions error:', error);
       return {
         success: false,
         error: error.message

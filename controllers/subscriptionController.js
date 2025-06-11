@@ -1,3 +1,4 @@
+const Subscription = require('../models/Subscription');
 const SubscriptionService = require('../services/subscriptionService');
 const PaymentService = require('../services/paymentService');
 const Subscription = require('../models/Subscription');
@@ -45,6 +46,12 @@ const createOrder = async (req, res) => {
         message: 'You already have an active subscription'
       });
     }
+
+    // Clean up any pending subscriptions for this user
+    await Subscription.deleteMany({
+      user: req.user.id,
+      status: 'pending'
+    });
 
     let result;
 
@@ -112,55 +119,88 @@ const createOrder = async (req, res) => {
 // @access  Private
 const verifyPayment = async (req, res) => {
   try {
-    const { 
-      razorpay_order_id, 
-      razorpay_payment_id, 
-      razorpay_signature,
-      plan 
-    } = req.body;
-
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !plan) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required payment details'
-      });
-    }
-
-    // Verify payment signature
-    const isValidSignature = PaymentService.verifyRazorpaySignature(
+    const {
       razorpay_order_id,
       razorpay_payment_id,
-      razorpay_signature
-    );
+      razorpay_signature,
+      razorpay_subscription_id,
+      plan
+    } = req.body;
 
-    if (!isValidSignature) {
+    if (!plan) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid payment signature'
+        message: 'Plan is required'
       });
     }
 
-    // Get payment details from Razorpay
-    const paymentResult = await PaymentService.getPaymentDetails(razorpay_payment_id);
-    
-    if (!paymentResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment verification failed'
-      });
-    }
+    let subscriptionResult;
 
-    // Create subscription (one-time payment for trial)
-    const subscriptionResult = await SubscriptionService.createOneTimeSubscription(
-      req.user.id,
-      plan,
-      {
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        signature: razorpay_signature,
-        email: req.user.email
+    // Handle recurring subscription (monthly/yearly)
+    if (razorpay_subscription_id) {
+      // For recurring subscriptions, we verify the subscription payment
+      if (!razorpay_subscription_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Subscription ID is required for recurring payments'
+        });
       }
-    );
+
+      // Activate the pending subscription
+      subscriptionResult = await SubscriptionService.activateRecurringSubscription(
+        req.user.id,
+        razorpay_subscription_id,
+        {
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+          signature: razorpay_signature
+        }
+      );
+    } else {
+      // Handle one-time payment (trial)
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required payment details for one-time payment'
+        });
+      }
+
+      // Verify payment signature for one-time payments
+      const isValidSignature = PaymentService.verifyRazorpaySignature(
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      );
+
+      if (!isValidSignature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature'
+        });
+      }
+
+      // Get payment details from Razorpay
+      const paymentResult = await PaymentService.getPaymentDetails(razorpay_payment_id);
+
+      if (!paymentResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment verification failed'
+        });
+      }
+
+      // Create subscription (one-time payment for trial)
+      subscriptionResult = await SubscriptionService.createOneTimeSubscription(
+        req.user.id,
+        plan,
+        {
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+          signature: razorpay_signature,
+          email: req.user.email
+        }
+      );
+    }
 
     if (!subscriptionResult.success) {
       return res.status(400).json({

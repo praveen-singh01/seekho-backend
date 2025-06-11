@@ -148,6 +148,30 @@ class CronService {
     console.log('✅ Manual maintenance completed');
   }
 
+  // Clean up pending subscriptions (runs every hour)
+  static schedulePendingCleanup() {
+    cron.schedule('0 * * * *', async () => {
+      console.log('Running pending subscriptions cleanup...');
+      try {
+        const result = await SubscriptionService.cleanupPendingSubscriptions();
+        if (result.success) {
+          console.log(`Cleaned up ${result.deletedCount} pending subscriptions`);
+        } else {
+          console.error('Pending cleanup failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Pending cleanup error:', error);
+      }
+    });
+  }
+
+  // Schedule all cron jobs
+  static startAllJobs() {
+    this.scheduleSubscriptionMaintenance();
+    this.schedulePendingCleanup();
+    console.log('All cron jobs started');
+  }
+
   // Get subscription statistics
   static async getSubscriptionStats() {
     try {
