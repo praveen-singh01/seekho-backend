@@ -10,6 +10,8 @@ const {
 } = require('../controllers/subscriptionController');
 const { protect } = require('../middleware/auth');
 const { validateSubscription, validatePagination } = require('../middleware/validation');
+const Subscription = require('../models/Subscription');
+const PaymentService = require('../services/paymentService');
 
 const router = express.Router();
 
@@ -53,7 +55,7 @@ router.post('/reactivate', protect, reactivateSubscription);
 // @access  Private
 router.post('/cancel-razorpay', protect, async (req, res) => {
   try {
-    const subscription = await require('../models/Subscription').findOne({
+    const subscription = await Subscription.findOne({
       user: req.user.id,
       status: 'active',
       isRecurring: true
@@ -66,7 +68,6 @@ router.post('/cancel-razorpay', protect, async (req, res) => {
       });
     }
 
-    const PaymentService = require('../services/paymentService');
     const result = await PaymentService.cancelRazorpaySubscription(subscription.razorpaySubscriptionId);
 
     if (result.success) {

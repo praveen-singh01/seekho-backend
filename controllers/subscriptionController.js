@@ -1,7 +1,6 @@
 const Subscription = require('../models/Subscription');
 const SubscriptionService = require('../services/subscriptionService');
 const PaymentService = require('../services/paymentService');
-const Subscription = require('../models/Subscription');
 
 // @desc    Get subscription plans
 // @route   GET /api/subscriptions/plans
