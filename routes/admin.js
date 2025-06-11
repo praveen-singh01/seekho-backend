@@ -20,7 +20,11 @@ const {
   getCloudFrontStatus,
   testCloudFrontUrl,
   invalidateCloudFrontCache,
-  convertVideosToCloudFront
+  convertVideosToCloudFront,
+  getSubscriptionStats,
+  runSubscriptionMaintenance,
+  getAllSubscriptions,
+  getSubscriptionAnalytics
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 const { 
@@ -495,5 +499,26 @@ router.post('/users/:id/toggle-status', validateObjectId(), async (req, res) => 
     });
   }
 });
+
+// Subscription management routes
+// @route   GET /api/admin/subscriptions/stats
+// @desc    Get subscription statistics
+// @access  Private/Admin
+router.get('/subscriptions/stats', getSubscriptionStats);
+
+// @route   POST /api/admin/subscriptions/maintenance
+// @desc    Run subscription maintenance manually
+// @access  Private/Admin
+router.post('/subscriptions/maintenance', runSubscriptionMaintenance);
+
+// @route   GET /api/admin/subscriptions/analytics
+// @desc    Get subscription analytics with historical data
+// @access  Private/Admin
+router.get('/subscriptions/analytics', getSubscriptionAnalytics);
+
+// @route   GET /api/admin/subscriptions
+// @desc    Get all subscriptions with filters
+// @access  Private/Admin
+router.get('/subscriptions', validatePagination, getAllSubscriptions);
 
 module.exports = router;

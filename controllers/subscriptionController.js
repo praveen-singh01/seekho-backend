@@ -27,8 +27,8 @@ const getPlans = async (req, res) => {
 // @access  Private
 const createOrder = async (req, res) => {
   try {
-    const { plan } = req.body;
-    
+    const { plan, subscriptionType = 'recurring' } = req.body;
+
     if (!['trial', 'monthly', 'yearly'].includes(plan)) {
       return res.status(400).json({
         success: false,
@@ -38,7 +38,7 @@ const createOrder = async (req, res) => {
 
     // Check if user already has an active subscription
     const existingSubscription = await SubscriptionService.getUserSubscription(req.user.id);
-    
+
     if (existingSubscription.success && existingSubscription.isActive) {
       return res.status(400).json({
         success: false,
@@ -46,26 +46,58 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Create payment order
-    const orderResult = await PaymentService.createSubscriptionOrder(req.user.id, plan);
-    
-    if (!orderResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: orderResult.error
+    let result;
+
+    if (plan === 'trial' || subscriptionType === 'one-time') {
+      // Create one-time payment order for trial
+      result = await PaymentService.createSubscriptionOrder(req.user.id, plan);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.error
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          orderId: result.order.id,
+          amount: result.order.amount,
+          currency: result.order.currency,
+          plan: plan,
+          subscriptionDetails: result.subscriptionDetails,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          type: 'one-time'
+        }
+      });
+    } else {
+      // For monthly and yearly, create recurring subscription
+      const customerData = {
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone || ''
+      };
+
+      result = await SubscriptionService.createRecurringSubscription(req.user.id, plan, customerData);
+
+      if (!result.success) {
+        return res.status(500).json({
+          success: false,
+          message: result.error
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          subscription: result.subscription,
+          razorpaySubscription: result.razorpaySubscription,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          type: 'recurring'
+        }
       });
     }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        orderId: orderResult.order.id,
-        amount: orderResult.order.amount,
-        currency: orderResult.order.currency,
-        plan: plan,
-        subscriptionDetails: orderResult.subscriptionDetails
-      }
-    });
   } catch (error) {
     console.error('Create order error:', error);
     res.status(500).json({
@@ -118,8 +150,8 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-    // Create subscription
-    const subscriptionResult = await SubscriptionService.createSubscription(
+    // Create subscription (one-time payment for trial)
+    const subscriptionResult = await SubscriptionService.createOneTimeSubscription(
       req.user.id,
       plan,
       {

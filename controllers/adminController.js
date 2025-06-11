@@ -1175,6 +1175,226 @@ const convertVideosToCloudFront = async (req, res) => {
   }
 };
 
+// @desc    Get subscription statistics and management
+// @route   GET /api/admin/subscriptions/stats
+// @access  Private/Admin
+const getSubscriptionStats = async (req, res) => {
+  try {
+    const CronService = require('../services/cronService');
+    const result = await CronService.getSubscriptionStats();
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.stats
+    });
+  } catch (error) {
+    console.error('Get subscription stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Run subscription maintenance manually
+// @route   POST /api/admin/subscriptions/maintenance
+// @access  Private/Admin
+const runSubscriptionMaintenance = async (req, res) => {
+  try {
+    const CronService = require('../services/cronService');
+    await CronService.runMaintenanceNow();
+
+    res.status(200).json({
+      success: true,
+      message: 'Subscription maintenance completed successfully'
+    });
+  } catch (error) {
+    console.error('Run subscription maintenance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all subscriptions with filters
+// @route   GET /api/admin/subscriptions
+// @access  Private/Admin
+const getAllSubscriptions = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      plan,
+      isRecurring,
+      search
+    } = req.query;
+
+    const filter = {};
+
+    if (status) filter.status = status;
+    if (plan) filter.plan = plan;
+    if (isRecurring !== undefined) filter.isRecurring = isRecurring === 'true';
+
+    let query = Subscription.find(filter)
+      .populate('user', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    if (search) {
+      const users = await User.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+
+      const userIds = users.map(user => user._id);
+      filter.user = { $in: userIds };
+      query = Subscription.find(filter)
+        .populate('user', 'name email phone')
+        .sort({ createdAt: -1 });
+    }
+
+    const subscriptions = await query
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Subscription.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      count: subscriptions.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: subscriptions
+    });
+  } catch (error) {
+    console.error('Get all subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get subscription analytics with historical data
+// @route   GET /api/admin/subscriptions/analytics
+// @access  Private/Admin
+const getSubscriptionAnalytics = async (req, res) => {
+  try {
+    const { timeRange = '6months' } = req.query;
+
+    // Calculate date range
+    let months = 6;
+    switch (timeRange) {
+      case '3months':
+        months = 3;
+        break;
+      case '12months':
+        months = 12;
+        break;
+      default:
+        months = 6;
+    }
+
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+
+    // Get monthly subscription data
+    const monthlyData = await Subscription.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          newSubscriptions: { $sum: 1 },
+          revenue: { $sum: '$amount' },
+          plans: { $push: '$plan' }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // Get cancellation data
+    const cancellationData = await Subscription.aggregate([
+      {
+        $match: {
+          status: 'cancelled',
+          updatedAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$updatedAt' },
+            month: { $month: '$updatedAt' }
+          },
+          cancelledSubscriptions: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Format monthly data
+    const formattedMonthlyData = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      const monthData = monthlyData.find(d => d._id.year === year && d._id.month === month);
+      const cancelData = cancellationData.find(d => d._id.year === year && d._id.month === month);
+
+      formattedMonthlyData.push({
+        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        newSubscriptions: monthData?.newSubscriptions || 0,
+        cancelledSubscriptions: cancelData?.cancelledSubscriptions || 0,
+        revenue: monthData?.revenue || 0,
+        activeSubscriptions: Math.max(0, (monthData?.newSubscriptions || 0) - (cancelData?.cancelledSubscriptions || 0))
+      });
+    }
+
+    // Get current stats
+    const CronService = require('../services/cronService');
+    const currentStats = await CronService.getSubscriptionStats();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        monthlyData: formattedMonthlyData,
+        currentStats: currentStats.success ? currentStats.stats : null,
+        timeRange
+      }
+    });
+  } catch (error) {
+    console.error('Get subscription analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -1196,5 +1416,9 @@ module.exports = {
   getCloudFrontStatus,
   testCloudFrontUrl,
   invalidateCloudFrontCache,
-  convertVideosToCloudFront
+  convertVideosToCloudFront,
+  getSubscriptionStats,
+  runSubscriptionMaintenance,
+  getAllSubscriptions,
+  getSubscriptionAnalytics
 };

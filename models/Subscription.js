@@ -48,9 +48,26 @@ const subscriptionSchema = new mongoose.Schema({
   signature: {
     type: String // For Razorpay signature verification
   },
+  // Razorpay Subscription specific fields
+  razorpaySubscriptionId: {
+    type: String,
+    default: null // For auto-renewal subscriptions
+  },
+  razorpayPlanId: {
+    type: String,
+    default: null // Razorpay plan ID
+  },
+  razorpayCustomerId: {
+    type: String,
+    default: null // Razorpay customer ID
+  },
   autoRenew: {
     type: Boolean,
     default: true
+  },
+  isRecurring: {
+    type: Boolean,
+    default: false // True for auto-renewal subscriptions
   },
   cancelledAt: {
     type: Date,
@@ -68,12 +85,30 @@ const subscriptionSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  nextBillingDate: {
+    type: Date,
+    default: null // For recurring subscriptions
+  },
+  failedPaymentCount: {
+    type: Number,
+    default: 0
+  },
+  lastSuccessfulPayment: {
+    type: Date,
+    default: null
+  },
+  subscriptionType: {
+    type: String,
+    enum: ['one-time', 'recurring'],
+    default: 'one-time'
+  },
   metadata: {
     customerEmail: String,
     customerPhone: String,
     promoCode: String,
     discount: Number,
-    originalAmount: Number
+    originalAmount: Number,
+    webhookEvents: [String] // Track webhook events
   }
 }, {
   timestamps: true,
@@ -100,6 +135,9 @@ subscriptionSchema.index({ status: 1, endDate: 1 });
 subscriptionSchema.index({ paymentId: 1 });
 subscriptionSchema.index({ orderId: 1 });
 subscriptionSchema.index({ endDate: 1 }); // For finding expiring subscriptions
+subscriptionSchema.index({ razorpaySubscriptionId: 1 });
+subscriptionSchema.index({ nextBillingDate: 1 });
+subscriptionSchema.index({ isRecurring: 1, autoRenew: 1 });
 
 // Check if subscription is active
 subscriptionSchema.methods.isActive = function() {
@@ -129,6 +167,49 @@ subscriptionSchema.methods.renew = async function(newEndDate, paymentId, orderId
   this.orderId = orderId;
   this.renewalAttempts = 0;
   this.lastRenewalAttempt = new Date();
+  this.lastSuccessfulPayment = new Date();
+  this.failedPaymentCount = 0;
+
+  // Update next billing date for recurring subscriptions
+  if (this.isRecurring) {
+    const nextBilling = new Date(newEndDate);
+    if (this.plan === 'monthly') {
+      nextBilling.setMonth(nextBilling.getMonth() + 1);
+    } else if (this.plan === 'yearly') {
+      nextBilling.setFullYear(nextBilling.getFullYear() + 1);
+    }
+    this.nextBillingDate = nextBilling;
+  }
+
+  await this.save();
+};
+
+// Handle failed payment
+subscriptionSchema.methods.handleFailedPayment = async function() {
+  this.failedPaymentCount += 1;
+  this.renewalAttempts += 1;
+  this.lastRenewalAttempt = new Date();
+
+  // Cancel subscription after 3 failed attempts
+  if (this.failedPaymentCount >= 3) {
+    this.status = 'cancelled';
+    this.autoRenew = false;
+    this.cancelReason = 'Payment failed multiple times';
+    this.cancelledAt = new Date();
+  }
+
+  await this.save();
+};
+
+// Update subscription from webhook
+subscriptionSchema.methods.updateFromWebhook = async function(webhookData) {
+  if (webhookData.event) {
+    if (!this.metadata.webhookEvents) {
+      this.metadata.webhookEvents = [];
+    }
+    this.metadata.webhookEvents.push(`${webhookData.event}:${new Date().toISOString()}`);
+  }
+
   await this.save();
 };
 
@@ -149,6 +230,32 @@ subscriptionSchema.statics.findExpired = function() {
   return this.find({
     status: 'active',
     endDate: { $lt: new Date() }
+  }).populate('user');
+};
+
+// Static method to find subscriptions due for renewal
+subscriptionSchema.statics.findDueForRenewal = function() {
+  const now = new Date();
+  return this.find({
+    status: 'active',
+    isRecurring: true,
+    autoRenew: true,
+    nextBillingDate: { $lte: now },
+    failedPaymentCount: { $lt: 3 }
+  }).populate('user');
+};
+
+// Static method to find failed recurring payments to retry
+subscriptionSchema.statics.findFailedRenewals = function() {
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+  return this.find({
+    status: 'active',
+    isRecurring: true,
+    autoRenew: true,
+    failedPaymentCount: { $gt: 0, $lt: 3 },
+    lastRenewalAttempt: { $lt: oneDayAgo }
   }).populate('user');
 };
 

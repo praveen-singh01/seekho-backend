@@ -48,4 +48,46 @@ router.get('/history', protect, validatePagination, getHistory);
 // @access  Private
 router.post('/reactivate', protect, reactivateSubscription);
 
+// @route   POST /api/subscriptions/cancel-razorpay
+// @desc    Cancel Razorpay subscription
+// @access  Private
+router.post('/cancel-razorpay', protect, async (req, res) => {
+  try {
+    const subscription = await require('../models/Subscription').findOne({
+      user: req.user.id,
+      status: 'active',
+      isRecurring: true
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active recurring subscription found'
+      });
+    }
+
+    const PaymentService = require('../services/paymentService');
+    const result = await PaymentService.cancelRazorpaySubscription(subscription.razorpaySubscriptionId);
+
+    if (result.success) {
+      await subscription.cancel('Cancelled by user');
+      res.status(200).json({
+        success: true,
+        message: 'Subscription cancelled successfully'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+  } catch (error) {
+    console.error('Cancel Razorpay subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router;
