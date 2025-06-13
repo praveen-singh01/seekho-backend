@@ -1,4 +1,5 @@
 const Subscription = require('../models/Subscription');
+const User = require('../models/User');
 const SubscriptionService = require('../services/subscriptionService');
 const PaymentService = require('../services/paymentService');
 
@@ -8,7 +9,7 @@ const PaymentService = require('../services/paymentService');
 const getPlans = async (req, res) => {
   try {
     const plans = PaymentService.getSubscriptionPlans();
-    
+
     res.status(200).json({
       success: true,
       data: plans
@@ -34,6 +35,20 @@ const createOrder = async (req, res) => {
         success: false,
         message: 'Invalid subscription plan'
       });
+    }
+
+    // Check trial eligibility
+    if (plan === 'trial') {
+      const user = await User.findById(req.user.id);
+      if (!user.isTrialEligible()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Trial already used. Please choose monthly subscription.',
+          showMonthlyOnly: true,
+          monthlyPrice: 117,
+          monthlyPriceInPaise: 11700
+        });
+      }
     }
 
     // Check if user already has an active subscription
@@ -206,6 +221,12 @@ const verifyPayment = async (req, res) => {
           email: req.user.email
         }
       );
+
+      // Mark trial as used if this is a trial subscription
+      if (plan === 'trial' && subscriptionResult.success) {
+        const user = await User.findById(req.user.id);
+        await user.markTrialUsed();
+      }
     }
 
     if (!subscriptionResult.success) {
@@ -235,7 +256,7 @@ const verifyPayment = async (req, res) => {
 const getStatus = async (req, res) => {
   try {
     const result = await SubscriptionService.getUserSubscription(req.user.id);
-    
+
     if (!result.success) {
       return res.status(500).json({
         success: false,
@@ -273,9 +294,9 @@ const getStatus = async (req, res) => {
 const cancelSubscription = async (req, res) => {
   try {
     const { reason } = req.body;
-    
+
     const result = await SubscriptionService.cancelSubscription(req.user.id, reason);
-    
+
     if (!result.success) {
       return res.status(400).json({
         success: false,
@@ -303,7 +324,7 @@ const cancelSubscription = async (req, res) => {
 const getHistory = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    
+
     const subscriptions = await Subscription.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -377,6 +398,139 @@ const reactivateSubscription = async (req, res) => {
   }
 };
 
+// @desc    Convert trial to monthly subscription
+// @route   POST /api/subscriptions/convert-trial
+// @access  Private
+const convertTrial = async (req, res) => {
+  try {
+    const { subscriptionId } = req.body;
+
+    if (!subscriptionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription ID is required'
+      });
+    }
+
+    const result = await SubscriptionService.handleTrialConversion(subscriptionId);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orderId: result.order.id,
+        amount: result.order.amount,
+        currency: result.order.currency,
+        conversionAmount: result.conversionAmount,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+        subscription: result.subscription
+      }
+    });
+  } catch (error) {
+    console.error('Convert trial error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Complete trial conversion after payment
+// @route   POST /api/subscriptions/complete-conversion
+// @access  Private
+const completeTrialConversion = async (req, res) => {
+  try {
+    const {
+      subscriptionId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    } = req.body;
+
+    if (!subscriptionId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required payment details'
+      });
+    }
+
+    // Verify payment signature
+    const isValidSignature = PaymentService.verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    );
+
+    if (!isValidSignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature'
+      });
+    }
+
+    const result = await SubscriptionService.completeTrialConversion(subscriptionId, {
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+      signature: razorpay_signature
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Trial converted to monthly subscription successfully',
+      data: result.subscription
+    });
+  } catch (error) {
+    console.error('Complete trial conversion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Check trial eligibility
+// @route   GET /api/subscriptions/trial-eligibility
+// @access  Private
+const checkTrialEligibility = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const isEligible = user.isTrialEligible();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isTrialEligible: isEligible,
+        hasUsedTrial: user.hasUsedTrial,
+        trialUsedAt: user.trialUsedAt,
+        alternativeOptions: !isEligible ? {
+          monthlyPrice: 117,
+          monthlyPriceInPaise: 11700,
+          description: '₹99 + 18% GST = ₹117/month'
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('Check trial eligibility error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getPlans,
   createOrder,
@@ -384,5 +538,8 @@ module.exports = {
   getStatus,
   cancelSubscription,
   getHistory,
-  reactivateSubscription
+  reactivateSubscription,
+  convertTrial,
+  completeTrialConversion,
+  checkTrialEligibility
 };

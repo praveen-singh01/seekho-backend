@@ -36,6 +36,7 @@ const notFound = require('./middleware/notFound');
 
 // Import services
 const CronService = require('./services/cronService');
+const trialConversionJob = require('./jobs/trialConversionJob');
 
 const app = express();
 
@@ -183,6 +184,9 @@ const server = app.listen(PORT, () => {
 
   // Initialize cron jobs for subscription management
   CronService.init();
+
+  // Start trial conversion job
+  trialConversionJob.start();
 });
 
 // Handle unhandled promise rejections

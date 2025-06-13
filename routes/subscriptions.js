@@ -6,7 +6,10 @@ const {
   getStatus,
   cancelSubscription,
   getHistory,
-  reactivateSubscription
+  reactivateSubscription,
+  convertTrial,
+  completeTrialConversion,
+  checkTrialEligibility
 } = require('../controllers/subscriptionController');
 const { protect } = require('../middleware/auth');
 const { validateSubscription, validatePagination } = require('../middleware/validation');
@@ -49,6 +52,21 @@ router.get('/history', protect, validatePagination, getHistory);
 // @desc    Reactivate subscription
 // @access  Private
 router.post('/reactivate', protect, reactivateSubscription);
+
+// @route   GET /api/subscriptions/trial-eligibility
+// @desc    Check trial eligibility
+// @access  Private
+router.get('/trial-eligibility', protect, checkTrialEligibility);
+
+// @route   POST /api/subscriptions/convert-trial
+// @desc    Convert trial to monthly subscription
+// @access  Private
+router.post('/convert-trial', protect, convertTrial);
+
+// @route   POST /api/subscriptions/complete-conversion
+// @desc    Complete trial conversion after payment
+// @access  Private
+router.post('/complete-conversion', protect, completeTrialConversion);
 
 // @route   POST /api/subscriptions/cancel-razorpay
 // @desc    Cancel Razorpay subscription

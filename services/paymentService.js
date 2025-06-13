@@ -98,12 +98,12 @@ class PaymentService {
 
     switch (plan) {
       case 'trial':
-        endDate.setDate(startDate.getDate() + parseInt(process.env.TRIAL_DURATION_DAYS || 7));
+        endDate.setDate(startDate.getDate() + parseInt(process.env.TRIAL_DURATION_DAYS || 5));
         amount = parseInt(process.env.TRIAL_PRICE || 100); // ₹1 in paise
         break;
       case 'monthly':
         endDate.setDate(startDate.getDate() + 30); // 30 days for monthly
-        amount = parseInt(process.env.MONTHLY_PRICE || 9900); // ₹99 in paise
+        amount = parseInt(process.env.MONTHLY_PRICE || 11700); // ₹117 in paise (₹99 + 18% GST)
         break;
       case 'yearly':
         endDate.setDate(startDate.getDate() + 365); // 365 days for yearly
@@ -125,20 +125,24 @@ class PaymentService {
     return {
       trial: {
         name: 'Trial',
-        duration: '7 days',
+        duration: '5 days',
         price: 1,
         currency: 'INR',
         features: ['Access to all videos', 'HD quality', 'Mobile & web access'],
-        billingCycle: 'one-time'
+        billingCycle: 'one-time',
+        description: 'Try 5 days for ₹1, then ₹117/month'
       },
       monthly: {
         name: 'Monthly Subscription',
         duration: '30 days',
-        price: 99,
+        price: 117,
+        basePrice: 99,
+        gst: 18,
         currency: 'INR',
         features: ['Access to all videos', 'HD quality', 'Mobile & web access', 'Download for offline viewing', 'Auto-renewal'],
         billingCycle: 'monthly',
-        autoRenew: true
+        autoRenew: true,
+        description: '₹99 + 18% GST = ₹117/month'
       },
       yearly: {
         name: 'Yearly Subscription',
@@ -160,7 +164,7 @@ class PaymentService {
       const receipt = `sub_${plan}_${Date.now().toString().slice(-8)}`;
 
       const orderResult = await this.createRazorpayOrder(amount, 'INR', receipt);
-      
+
       if (!orderResult.success) {
         throw new Error(orderResult.error);
       }

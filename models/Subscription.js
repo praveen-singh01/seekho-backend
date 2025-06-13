@@ -11,6 +11,19 @@ const subscriptionSchema = new mongoose.Schema({
     enum: ['trial', 'monthly', 'yearly'],
     required: true
   },
+  // Trial-specific fields
+  isTrialSubscription: {
+    type: Boolean,
+    default: false
+  },
+  trialConvertedAt: {
+    type: Date,
+    default: null
+  },
+  originalTrialEndDate: {
+    type: Date,
+    default: null
+  },
   status: {
     type: String,
     enum: ['active', 'cancelled', 'expired', 'pending'],
@@ -217,7 +230,7 @@ subscriptionSchema.methods.updateFromWebhook = async function(webhookData) {
 subscriptionSchema.statics.findExpiring = function(days = 3) {
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + days);
-  
+
   return this.find({
     status: 'active',
     autoRenew: true,
@@ -257,6 +270,52 @@ subscriptionSchema.statics.findFailedRenewals = function() {
     failedPaymentCount: { $gt: 0, $lt: 3 },
     lastRenewalAttempt: { $lt: oneDayAgo }
   }).populate('user');
+};
+
+// Static method to find trials ready for conversion
+subscriptionSchema.statics.findTrialsForConversion = function() {
+  const now = new Date();
+  return this.find({
+    plan: 'trial',
+    status: 'active',
+    isTrialSubscription: true,
+    trialConvertedAt: null,
+    endDate: { $lte: now }
+  }).populate('user');
+};
+
+// Convert trial to monthly subscription
+subscriptionSchema.methods.convertTrialToMonthly = async function(paymentId, orderId, signature) {
+  this.plan = 'monthly';
+  this.isTrialSubscription = false;
+  this.trialConvertedAt = new Date();
+  this.originalTrialEndDate = this.endDate;
+
+  // Set new end date to 30 days from conversion
+  const newEndDate = new Date();
+  newEndDate.setDate(newEndDate.getDate() + 30);
+  this.endDate = newEndDate;
+
+  // Update payment details
+  this.paymentId = paymentId;
+  this.orderId = orderId;
+  this.signature = signature;
+  this.amount = 11700; // ₹117 in paise (₹99 + 18% GST)
+
+  // Set up for recurring billing
+  this.isRecurring = true;
+  this.autoRenew = true;
+  this.subscriptionType = 'recurring';
+
+  // Set next billing date
+  const nextBilling = new Date(newEndDate);
+  nextBilling.setDate(nextBilling.getDate() + 30);
+  this.nextBillingDate = nextBilling;
+
+  this.lastSuccessfulPayment = new Date();
+  this.failedPaymentCount = 0;
+
+  await this.save();
 };
 
 // Update user's subscription reference after save

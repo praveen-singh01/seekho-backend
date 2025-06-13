@@ -23,6 +23,9 @@ class SubscriptionService {
         subscriptionType: 'one-time',
         isRecurring: false,
         autoRenew: false,
+        // Trial-specific fields
+        isTrialSubscription: plan === 'trial',
+        originalTrialEndDate: plan === 'trial' ? endDate : null,
         metadata: {
           customerEmail: paymentData.email,
           customerPhone: paymentData.phone
@@ -349,11 +352,11 @@ class SubscriptionService {
   static async processExpiredSubscriptions() {
     try {
       const expiredSubscriptions = await Subscription.findExpired();
-      
+
       for (const subscription of expiredSubscriptions) {
         subscription.status = 'expired';
         await subscription.save();
-        
+
         // Update user's subscription reference
         await User.findByIdAndUpdate(subscription.user, { subscription: null });
       }
@@ -584,6 +587,123 @@ class SubscriptionService {
     } catch (error) {
       console.error('Handle payment failed error:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  // Handle trial to monthly conversion
+  static async handleTrialConversion(subscriptionId) {
+    try {
+      const subscription = await Subscription.findById(subscriptionId).populate('user');
+
+      if (!subscription || subscription.plan !== 'trial' || !subscription.isTrialSubscription) {
+        throw new Error('Invalid trial subscription');
+      }
+
+      // Create Razorpay order for monthly payment
+      const monthlyAmount = parseInt(process.env.MONTHLY_PRICE || 11700); // ₹117 in paise
+      const orderResult = await PaymentService.createRazorpayOrder(
+        monthlyAmount,
+        'INR',
+        `monthly_conversion_${Date.now()}`
+      );
+
+      if (!orderResult.success) {
+        throw new Error(`Failed to create conversion order: ${orderResult.error}`);
+      }
+
+      return {
+        success: true,
+        order: orderResult.order,
+        subscription: subscription,
+        conversionAmount: monthlyAmount
+      };
+    } catch (error) {
+      console.error('Trial conversion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Complete trial to monthly conversion after payment
+  static async completeTrialConversion(subscriptionId, paymentData) {
+    try {
+      const subscription = await Subscription.findById(subscriptionId).populate('user');
+
+      if (!subscription) {
+        throw new Error('Subscription not found');
+      }
+
+      // Convert trial to monthly
+      await subscription.convertTrialToMonthly(
+        paymentData.paymentId,
+        paymentData.orderId,
+        paymentData.signature
+      );
+
+      return {
+        success: true,
+        subscription: subscription
+      };
+    } catch (error) {
+      console.error('Trial conversion completion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Process expired trials for automatic conversion
+  static async processExpiredTrials() {
+    try {
+      const expiredTrials = await Subscription.findTrialsForConversion();
+      const results = [];
+
+      for (const subscription of expiredTrials) {
+        try {
+          // Create automatic conversion order
+          const conversionResult = await this.handleTrialConversion(subscription._id);
+
+          if (conversionResult.success) {
+            // Here you would typically integrate with your payment processor
+            // to automatically charge the user's saved payment method
+            // For now, we'll mark the trial as expired and notify the user
+
+            subscription.status = 'expired';
+            subscription.cancelReason = 'Trial expired - conversion required';
+            await subscription.save();
+
+            results.push({
+              subscriptionId: subscription._id,
+              userId: subscription.user._id,
+              status: 'conversion_required',
+              orderId: conversionResult.order.id
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to process trial ${subscription._id}:`, error);
+          results.push({
+            subscriptionId: subscription._id,
+            userId: subscription.user._id,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      return {
+        success: true,
+        processedTrials: results.length,
+        results: results
+      };
+    } catch (error) {
+      console.error('Process expired trials error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 }

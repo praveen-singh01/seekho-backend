@@ -65,6 +65,15 @@ const userSchema = new mongoose.Schema({
     ref: 'Subscription',
     default: null
   },
+  // Trial tracking
+  hasUsedTrial: {
+    type: Boolean,
+    default: false
+  },
+  trialUsedAt: {
+    type: Date,
+    default: null
+  },
   preferences: {
     language: {
       type: String,
@@ -124,7 +133,7 @@ userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
   }
-  
+
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
@@ -139,6 +148,18 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.getActiveSubscription = async function() {
   await this.populate('subscription');
   return this.subscription && this.subscription.isActive() ? this.subscription : null;
+};
+
+// Check if user is eligible for trial
+userSchema.methods.isTrialEligible = function() {
+  return !this.hasUsedTrial;
+};
+
+// Mark trial as used
+userSchema.methods.markTrialUsed = async function() {
+  this.hasUsedTrial = true;
+  this.trialUsedAt = new Date();
+  await this.save();
 };
 
 module.exports = mongoose.model('User', userSchema);
