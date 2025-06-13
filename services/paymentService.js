@@ -288,6 +288,23 @@ class PaymentService {
     }
   }
 
+  // Create Razorpay subscription with addons/discounts
+  static async createRazorpaySubscriptionWithAddons(subscriptionData) {
+    try {
+      const subscription = await razorpay.subscriptions.create(subscriptionData);
+      return {
+        success: true,
+        subscription
+      };
+    } catch (error) {
+      console.error('Razorpay subscription with addons creation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Create special trial-to-monthly plan for UPI mandate
   static async createTrialToMonthlyPlan() {
     try {

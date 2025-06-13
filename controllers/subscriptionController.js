@@ -70,14 +70,14 @@ const createOrder = async (req, res) => {
     let result;
 
     if (plan === 'trial') {
-      // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
+      // Create trial subscription with addon approach (₹1 immediate + ₹117 after 5 days)
       const customerData = {
         name: req.user.name,
         email: req.user.email,
         phone: req.user.phone || ''
       };
 
-      result = await SubscriptionService.createAutoRecurringTrialSubscription(req.user.id, customerData);
+      result = await SubscriptionService.createTrialWithMandate(req.user.id, customerData);
 
       if (!result.success) {
         return res.status(400).json({
@@ -86,25 +86,24 @@ const createOrder = async (req, res) => {
         });
       }
 
-      // Return subscription_id for auto-recurring trial (frontend expects this)
       res.status(200).json({
         success: true,
         data: {
-          orderId: result.razorpaySubscription.id, // This is actually subscription_id
-          subscription_id: result.razorpaySubscription.id, // Explicit subscription_id for frontend
-          amount: result.trialAmount, // ₹1 for trial
+          subscription_id: result.razorpaySubscription.id, // Subscription ID for UPI mandate
+          amount: result.firstPaymentAmount, // ₹1 charged immediately via addon
+          mandateAmount: result.mandateAmount, // ₹117 UPI mandate for future billing
           currency: 'INR',
           plan: plan,
           subscriptionDetails: {
             subscriptionId: result.subscription._id,
-            customerId: result.razorpayCustomer.id,
-            planId: result.razorpayPlan.id,
-            trialPeriod: result.trialPeriod,
-            trialAmount: result.trialAmount,
-            monthlyAmount: result.monthlyAmount
+            customerId: result.subscription.razorpayCustomerId,
+            trialPeriod: 5,
+            trialAmount: 100,
+            monthlyAmount: 11700,
+            nextBillingDate: result.subscription.nextBillingDate
           },
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'auto-recurring-trial'
+          type: 'trial-addon-mandate' // Trial via addon + UPI mandate for ₹117
         }
       });
     } else if (subscriptionType === 'one-time') {

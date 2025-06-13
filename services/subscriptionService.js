@@ -719,13 +719,35 @@ class SubscriptionService {
         throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
       }
 
-      // Create Razorpay subscription for ₹117/month
-      // The first payment will be discounted to ₹1 using addons/discounts
-      const subscriptionResult = await PaymentService.createRazorpaySubscription(
-        monthlyPlanResult.plan.id,
-        customerResult.customer.id,
-        120 // 120 months total
-      );
+      // Create Razorpay subscription with trial addon approach
+      // Immediate charge: ₹1 via addon, Main billing: ₹117 starts after 5 days
+      const subscriptionData = {
+        plan_id: monthlyPlanResult.plan.id,
+        customer_id: customerResult.customer.id,
+        quantity: 1,
+        total_count: 120,
+        // Delay main subscription billing by 5 days
+        start_at: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60, // Start ₹117 billing after 5 days
+        // Add trial fee as addon (charged immediately)
+        addons: [
+          {
+            item: {
+              name: "Trial Fee",
+              amount: 100, // ₹1 in paise (charged immediately)
+              currency: "INR"
+            }
+          }
+        ],
+        // Add notes for tracking
+        notes: {
+          trial_amount: "100", // ₹1 in paise
+          trial_period: "5", // 5 days
+          plan_type: "trial_to_monthly",
+          package_name: "seekho"
+        }
+      };
+
+      const subscriptionResult = await PaymentService.createRazorpaySubscriptionWithAddons(subscriptionData);
 
       if (!subscriptionResult.success) {
         throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
