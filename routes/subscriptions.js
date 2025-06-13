@@ -9,7 +9,8 @@ const {
   reactivateSubscription,
   convertTrial,
   completeTrialConversion,
-  checkTrialEligibility
+  checkTrialEligibility,
+  createTrialWithMandate
 } = require('../controllers/subscriptionController');
 const { protect } = require('../middleware/auth');
 const { validateSubscription, validatePagination } = require('../middleware/validation');
@@ -67,6 +68,11 @@ router.post('/convert-trial', protect, convertTrial);
 // @desc    Complete trial conversion after payment
 // @access  Private
 router.post('/complete-conversion', protect, completeTrialConversion);
+
+// @route   POST /api/subscriptions/create-trial-with-mandate
+// @desc    Create trial subscription with UPI mandate for auto-conversion
+// @access  Private
+router.post('/create-trial-with-mandate', protect, createTrialWithMandate);
 
 // @route   POST /api/subscriptions/cancel-razorpay
 // @desc    Cancel Razorpay subscription

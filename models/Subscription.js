@@ -24,6 +24,10 @@ const subscriptionSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  trialWithMandate: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
     enum: ['active', 'cancelled', 'expired', 'pending'],
@@ -284,6 +288,19 @@ subscriptionSchema.statics.findTrialsForConversion = function() {
   }).populate('user');
 };
 
+// Static method to find trials with mandate ready for auto-conversion
+subscriptionSchema.statics.findTrialsWithMandateForConversion = function() {
+  const now = new Date();
+  return this.find({
+    plan: 'trial',
+    status: 'active',
+    isTrialSubscription: true,
+    trialWithMandate: true,
+    trialConvertedAt: null,
+    endDate: { $lte: now }
+  }).populate('user');
+};
+
 // Convert trial to monthly subscription
 subscriptionSchema.methods.convertTrialToMonthly = async function(paymentId, orderId, signature) {
   this.plan = 'monthly';
@@ -314,6 +331,36 @@ subscriptionSchema.methods.convertTrialToMonthly = async function(paymentId, ord
 
   this.lastSuccessfulPayment = new Date();
   this.failedPaymentCount = 0;
+
+  await this.save();
+};
+
+// Auto-convert trial with mandate to monthly (no payment needed - already set up)
+subscriptionSchema.methods.autoConvertTrialWithMandate = async function() {
+  this.plan = 'monthly';
+  this.isTrialSubscription = false;
+  this.trialConvertedAt = new Date();
+  this.originalTrialEndDate = this.endDate;
+
+  // Set new end date to 30 days from conversion
+  const newEndDate = new Date();
+  newEndDate.setDate(newEndDate.getDate() + 30);
+  this.endDate = newEndDate;
+
+  // Update amount to monthly
+  this.amount = 11700; // ₹117 in paise
+
+  // Set next billing date
+  const nextBilling = new Date(newEndDate);
+  nextBilling.setDate(nextBilling.getDate() + 30);
+  this.nextBillingDate = nextBilling;
+
+  this.lastSuccessfulPayment = new Date();
+  this.failedPaymentCount = 0;
+
+  // Update metadata
+  this.metadata.convertedFromTrial = true;
+  this.metadata.conversionDate = new Date();
 
   await this.save();
 };

@@ -239,7 +239,7 @@ class PaymentService {
   }
 
   // Create Razorpay subscription
-  static async createRazorpaySubscription(planId, customerId, totalCount = 120) {
+  static async createRazorpaySubscription(planId, customerId, totalCount = 120, trialOptions = null) {
     try {
       const subscriptionData = {
         plan_id: planId,
@@ -248,6 +248,16 @@ class PaymentService {
         total_count: totalCount // Default to 120 cycles (10 years for monthly, 120 years for yearly)
       };
 
+      // Add trial options if provided
+      if (trialOptions) {
+        if (trialOptions.trial_period) {
+          subscriptionData.trial_period = trialOptions.trial_period;
+        }
+        if (trialOptions.trial_amount !== undefined) {
+          subscriptionData.trial_amount = trialOptions.trial_amount;
+        }
+      }
+
       const subscription = await razorpay.subscriptions.create(subscriptionData);
       return {
         success: true,
@@ -255,6 +265,35 @@ class PaymentService {
       };
     } catch (error) {
       console.error('Razorpay subscription creation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Create special trial-to-monthly plan for UPI mandate
+  static async createTrialToMonthlyPlan() {
+    try {
+      const planData = {
+        period: 'monthly',
+        interval: 1,
+        item: {
+          name: 'Seekho Trial to Monthly Plan',
+          amount: 11700, // ₹117 in paise (monthly amount after trial)
+          currency: 'INR',
+          description: 'Trial ₹1 for 5 days, then ₹117/month'
+        }
+      };
+
+      const plan = await razorpay.plans.create(planData);
+
+      return {
+        success: true,
+        plan
+      };
+    } catch (error) {
+      console.error('Trial-to-monthly plan creation error:', error);
       return {
         success: false,
         error: error.message

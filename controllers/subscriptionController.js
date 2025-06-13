@@ -531,6 +531,76 @@ const checkTrialEligibility = async (req, res) => {
   }
 };
 
+// @desc    Create trial subscription with UPI mandate
+// @route   POST /api/subscriptions/create-trial-with-mandate
+// @access  Private
+const createTrialWithMandate = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    // Check trial eligibility
+    const user = await User.findById(req.user.id);
+    if (!user.isTrialEligible()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trial already used. Please choose monthly subscription.',
+        showMonthlyOnly: true,
+        monthlyPrice: 117,
+        monthlyPriceInPaise: 11700
+      });
+    }
+
+    // Check if user already has an active subscription
+    const existingSubscription = await user.getActiveSubscription();
+    if (existingSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active subscription'
+      });
+    }
+
+    const customerData = {
+      name: name || user.name,
+      email: email || user.email,
+      phone: phone || user.phone
+    };
+
+    const result = await SubscriptionService.createTrialWithMandate(req.user.id, customerData);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    // Mark trial as used
+    await user.markTrialUsed();
+
+    res.status(200).json({
+      success: true,
+      message: 'Trial subscription with UPI mandate created successfully',
+      data: {
+        subscriptionId: result.subscription._id,
+        razorpaySubscriptionId: result.razorpaySubscription.id,
+        shortUrl: result.razorpaySubscription.short_url,
+        mandateSetup: result.mandateSetup,
+        firstPaymentAmount: result.firstPaymentAmount, // ₹1 in paise
+        mandateAmount: result.mandateAmount, // ₹117 in paise (UPI mandate)
+        trialPeriod: 5, // days
+        description: 'UPI mandate for ₹117/month, first payment ₹1 (trial)',
+        instructions: 'Complete the subscription setup to activate your trial'
+      }
+    });
+  } catch (error) {
+    console.error('Create trial with mandate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getPlans,
   createOrder,
@@ -541,5 +611,6 @@ module.exports = {
   reactivateSubscription,
   convertTrial,
   completeTrialConversion,
-  checkTrialEligibility
+  checkTrialEligibility,
+  createTrialWithMandate
 };

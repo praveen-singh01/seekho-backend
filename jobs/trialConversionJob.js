@@ -10,7 +10,7 @@ class TrialConversionJob {
   // Start the cron job to check for expired trials every hour
   start() {
     console.log('🔄 Starting Trial Conversion Job...');
-    
+
     // Run every hour at minute 0
     cron.schedule('0 * * * *', async () => {
       if (this.isRunning) {
@@ -31,30 +31,52 @@ class TrialConversionJob {
   // Process expired trials
   async processExpiredTrials() {
     this.isRunning = true;
-    
+
     try {
       console.log('📋 Processing expired trials...');
-      
-      // Find trials that have expired and need conversion
-      const expiredTrials = await Subscription.findTrialsForConversion();
-      
-      if (expiredTrials.length === 0) {
+
+      // Find trials with mandate that can auto-convert
+      const trialsWithMandate = await Subscription.findTrialsWithMandateForConversion();
+
+      // Find regular trials that need manual conversion
+      const regularTrials = await Subscription.findTrialsForConversion();
+
+      if (trialsWithMandate.length === 0 && regularTrials.length === 0) {
         console.log('✅ No expired trials found');
         return;
       }
 
-      console.log(`📊 Found ${expiredTrials.length} expired trials to process`);
+      console.log(`📊 Found ${trialsWithMandate.length} trials with mandate and ${regularTrials.length} regular trials to process`);
 
       const results = {
-        processed: 0,
+        autoConverted: 0,
+        manualConversion: 0,
         errors: 0,
         notifications: []
       };
 
-      for (const subscription of expiredTrials) {
+      // Process trials with mandate (auto-convert)
+      for (const subscription of trialsWithMandate) {
         try {
-          console.log(`🔄 Processing trial ${subscription._id} for user ${subscription.user.email}`);
-          
+          console.log(`🔄 Auto-converting trial with mandate ${subscription._id} for user ${subscription.user.email}`);
+
+          // Auto-convert to monthly (UPI mandate already set up)
+          await subscription.autoConvertTrialWithMandate();
+
+          results.autoConverted++;
+          console.log(`✅ Auto-converted trial ${subscription._id} to monthly subscription`);
+
+        } catch (error) {
+          console.error(`❌ Error auto-converting trial ${subscription._id}:`, error);
+          results.errors++;
+        }
+      }
+
+      // Process regular trials (require manual conversion)
+      for (const subscription of regularTrials) {
+        try {
+          console.log(`🔄 Processing regular trial ${subscription._id} for user ${subscription.user.email}`);
+
           // Mark trial as expired and requiring conversion
           subscription.status = 'expired';
           subscription.cancelReason = 'Trial expired - conversion to monthly required';
@@ -69,9 +91,9 @@ class TrialConversionJob {
             message: 'Trial expired - conversion required'
           });
 
-          results.processed++;
-          console.log(`✅ Processed trial ${subscription._id}`);
-          
+          results.manualConversion++;
+          console.log(`✅ Processed regular trial ${subscription._id}`);
+
         } catch (error) {
           console.error(`❌ Error processing trial ${subscription._id}:`, error);
           results.errors++;
@@ -79,7 +101,8 @@ class TrialConversionJob {
       }
 
       console.log(`📈 Trial conversion job completed:`);
-      console.log(`   - Processed: ${results.processed}`);
+      console.log(`   - Auto-converted: ${results.autoConverted}`);
+      console.log(`   - Manual conversion required: ${results.manualConversion}`);
       console.log(`   - Errors: ${results.errors}`);
       console.log(`   - Notifications: ${results.notifications.length}`);
 
@@ -98,12 +121,12 @@ class TrialConversionJob {
   // Send notifications to users about trial expiration
   async sendTrialExpirationNotifications(notifications) {
     console.log(`📧 Sending ${notifications.length} trial expiration notifications...`);
-    
+
     // Here you would integrate with your notification service
     // For now, we'll just log the notifications
     for (const notification of notifications) {
       console.log(`📧 Notification for ${notification.email}: ${notification.message}`);
-      
+
       // Example: Send email notification
       // await EmailService.sendTrialExpirationEmail(notification.email, {
       //   subscriptionId: notification.subscriptionId,

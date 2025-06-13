@@ -590,6 +590,99 @@ class SubscriptionService {
     }
   }
 
+  // Create trial subscription with UPI mandate for auto-conversion
+  static async createTrialWithMandate(userId, customerData) {
+    try {
+      // Create Razorpay customer
+      const customerResult = await PaymentService.createRazorpayCustomer(customerData);
+      if (!customerResult.success) {
+        throw new Error(`Customer creation failed: ${customerResult.error}`);
+      }
+
+      // Create monthly plan (₹117/month) - this will be the mandate amount
+      const monthlyPlanResult = await PaymentService.createRazorpayPlan(
+        `monthly_plan_${Date.now()}`,
+        11700, // ₹117 in paise
+        'monthly'
+      );
+
+      if (!monthlyPlanResult.success) {
+        throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
+      }
+
+      // Create Razorpay subscription for ₹117/month
+      // The first payment will be discounted to ₹1 using addons/discounts
+      const subscriptionResult = await PaymentService.createRazorpaySubscription(
+        monthlyPlanResult.plan.id,
+        customerResult.customer.id,
+        120 // 120 months total
+      );
+
+      if (!subscriptionResult.success) {
+        throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
+      }
+
+      // Calculate dates
+      const startDate = new Date();
+      const trialEndDate = new Date();
+      trialEndDate.setDate(startDate.getDate() + 5); // 5 days trial
+
+      // Next billing should be immediately after trial ends (5 days from start)
+      const nextBillingDate = new Date(trialEndDate);
+      // No additional days - billing happens right after trial expires
+
+      const subscription = await Subscription.create({
+        user: userId,
+        plan: 'trial', // This is a trial that will convert to monthly
+        status: 'pending',
+        startDate,
+        endDate: trialEndDate, // Only 5 days access
+        amount: 100, // Trial amount (what user actually pays)
+        currency: 'INR',
+        paymentProvider: 'razorpay',
+        paymentId: subscriptionResult.subscription.id,
+        orderId: subscriptionResult.subscription.id,
+        razorpaySubscriptionId: subscriptionResult.subscription.id,
+        razorpayPlanId: monthlyPlanResult.plan.id,
+        razorpayCustomerId: customerResult.customer.id,
+        subscriptionType: 'recurring',
+        isRecurring: true,
+        autoRenew: true,
+        nextBillingDate, // Next billing after 5 days
+        // Trial-specific fields
+        isTrialSubscription: true,
+        originalTrialEndDate: trialEndDate,
+        trialWithMandate: true, // Flag to indicate this trial has UPI mandate
+        metadata: {
+          customerEmail: customerData.email,
+          customerPhone: customerData.phone,
+          trialAmount: 100, // What user pays initially
+          monthlyAmount: 11700, // What mandate is set up for
+          mandateAmount: 11700, // UPI mandate amount
+          accessDuration: 5 // Only 5 days of access
+        }
+      });
+
+      // Update user's subscription reference
+      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+
+      return {
+        success: true,
+        subscription,
+        razorpaySubscription: subscriptionResult.subscription,
+        mandateSetup: true,
+        firstPaymentAmount: 100, // ₹1 (with discount)
+        mandateAmount: 11700 // ₹117 (UPI mandate amount)
+      };
+    } catch (error) {
+      console.error('Trial with mandate creation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Handle trial to monthly conversion
   static async handleTrialConversion(subscriptionId) {
     try {
