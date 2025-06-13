@@ -338,17 +338,13 @@ class PaymentService {
         throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
       }
 
-      // Create Razorpay subscription with trial period
-      const trialOptions = {
-        trial_period: 5, // 5 days trial
-        trial_amount: 100 // ₹1 in paise for trial
-      };
-
+      // Create Razorpay subscription without trial parameters
+      // We'll handle the trial logic in our application
       const subscriptionResult = await this.createRazorpaySubscription(
         monthlyPlanResult.plan.id,
         customerResult.customer.id,
-        120, // 120 cycles (10 years)
-        trialOptions
+        120 // 120 cycles (10 years)
+        // No trial options - we'll handle trial in our app logic
       );
 
       if (!subscriptionResult.success) {
