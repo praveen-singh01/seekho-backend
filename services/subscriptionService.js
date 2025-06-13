@@ -590,6 +590,115 @@ class SubscriptionService {
     }
   }
 
+  // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
+  static async createAutoRecurringTrialSubscription(userId, customerData) {
+    try {
+      // Create auto-recurring trial subscription via PaymentService
+      const result = await PaymentService.createAutoRecurringTrialSubscription(userId, customerData);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      // Calculate dates
+      const startDate = new Date();
+      const trialEndDate = new Date();
+      trialEndDate.setDate(startDate.getDate() + 5); // 5 days trial
+
+      // Next billing date is 5 days from start (when trial ends)
+      const nextBillingDate = new Date(trialEndDate);
+
+      // Create subscription record in database
+      const subscription = await Subscription.create({
+        user: userId,
+        plan: 'trial', // This will auto-convert to monthly
+        status: 'active', // Active immediately after payment
+        startDate,
+        endDate: trialEndDate, // Trial ends after 5 days
+        amount: 100, // Trial amount (₹1)
+        currency: 'INR',
+        paymentProvider: 'razorpay',
+        paymentId: result.subscription.id,
+        orderId: result.subscription.id,
+        razorpaySubscriptionId: result.subscription.id,
+        razorpayPlanId: result.plan.id,
+        razorpayCustomerId: result.customer.id,
+        subscriptionType: 'recurring',
+        isRecurring: true,
+        autoRenew: true,
+        nextBillingDate,
+        // Trial-specific fields
+        isTrialSubscription: true,
+        originalTrialEndDate: trialEndDate,
+        trialWithMandate: false, // This is auto-recurring, not mandate-based
+        metadata: {
+          customerEmail: customerData.email,
+          customerPhone: customerData.phone,
+          trialAmount: 100, // ₹1
+          monthlyAmount: 11700, // ₹117
+          trialPeriod: 5, // 5 days
+          autoRecurring: true
+        }
+      });
+
+      // Update user's subscription reference
+      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+
+      return {
+        success: true,
+        subscription,
+        razorpaySubscription: result.subscription,
+        razorpayPlan: result.plan,
+        razorpayCustomer: result.customer,
+        trialAmount: result.trialAmount,
+        monthlyAmount: result.monthlyAmount,
+        trialPeriod: result.trialPeriod
+      };
+    } catch (error) {
+      console.error('Auto-recurring trial subscription creation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Activate auto-recurring trial subscription after payment
+  static async activateAutoRecurringTrialSubscription(userId, paymentData) {
+    try {
+      // Find the subscription by Razorpay subscription ID
+      const subscription = await Subscription.findOne({
+        user: userId,
+        razorpaySubscriptionId: paymentData.subscriptionId,
+        plan: 'trial',
+        isTrialSubscription: true
+      });
+
+      if (!subscription) {
+        throw new Error('Auto-recurring trial subscription not found');
+      }
+
+      // Update subscription with payment details
+      subscription.status = 'active';
+      subscription.paymentId = paymentData.paymentId;
+      subscription.signature = paymentData.signature;
+      subscription.lastSuccessfulPayment = new Date();
+
+      await subscription.save();
+
+      return {
+        success: true,
+        subscription
+      };
+    } catch (error) {
+      console.error('Auto-recurring trial activation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Create trial subscription with UPI mandate for auto-conversion
   static async createTrialWithMandate(userId, customerData) {
     try {
@@ -793,6 +902,268 @@ class SubscriptionService {
       };
     } catch (error) {
       console.error('Process expired trials error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Handle webhook events
+  static async handleWebhook(event, payload) {
+    try {
+      switch (event) {
+        case 'subscription.charged':
+          return await this.handleSubscriptionCharged(payload);
+
+        case 'subscription.cancelled':
+          return await this.handleSubscriptionCancelled(payload);
+
+        case 'subscription.completed':
+          return await this.handleSubscriptionCompleted(payload);
+
+        case 'payment.failed':
+          return await this.handlePaymentFailed(payload);
+
+        default:
+          console.log(`Unhandled webhook event: ${event}`);
+          return {
+            success: true,
+            message: `Event ${event} acknowledged but not processed`
+          };
+      }
+    } catch (error) {
+      console.error('Webhook handling error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Handle subscription charged event (auto-billing)
+  static async handleSubscriptionCharged(payload) {
+    try {
+      const { subscription, payment } = payload;
+
+      // Find subscription in our database
+      const dbSubscription = await Subscription.findOne({
+        razorpaySubscriptionId: subscription.entity.id
+      }).populate('user');
+
+      if (!dbSubscription) {
+        console.error(`Subscription not found: ${subscription.entity.id}`);
+        return {
+          success: false,
+          error: `Subscription not found: ${subscription.entity.id}`
+        };
+      }
+
+      // Check if this is a trial conversion (first auto-billing after trial)
+      if (dbSubscription.isTrialSubscription && dbSubscription.plan === 'trial') {
+        // Convert trial to monthly subscription
+        await this.convertTrialToMonthlyWebhook(dbSubscription, payment.entity);
+        return {
+          success: true,
+          message: `Trial converted to monthly: ${subscription.entity.id}`
+        };
+      } else {
+        // Regular subscription renewal
+        await this.renewSubscriptionWebhook(dbSubscription, payment.entity);
+        return {
+          success: true,
+          message: `Subscription renewed: ${subscription.entity.id}`
+        };
+      }
+    } catch (error) {
+      console.error('Error handling subscription charged:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Convert trial subscription to monthly after auto-billing
+  static async convertTrialToMonthlyWebhook(subscription, payment) {
+    try {
+      // Update subscription to monthly
+      subscription.plan = 'monthly';
+      subscription.isTrialSubscription = false;
+      subscription.trialConvertedAt = new Date();
+      subscription.amount = 11700; // ₹117 in paise
+
+      // Extend subscription for 30 days from trial end date
+      const newEndDate = new Date(subscription.endDate);
+      newEndDate.setDate(newEndDate.getDate() + 30);
+      subscription.endDate = newEndDate;
+
+      // Set next billing date
+      const nextBilling = new Date(newEndDate);
+      nextBilling.setDate(nextBilling.getDate() + 30);
+      subscription.nextBillingDate = nextBilling;
+
+      // Update payment details
+      subscription.paymentId = payment.id;
+      subscription.lastSuccessfulPayment = new Date();
+      subscription.failedPaymentCount = 0;
+
+      await subscription.save();
+
+      console.log(`Trial converted to monthly: ${subscription._id}`);
+    } catch (error) {
+      console.error('Error converting trial to monthly:', error);
+      throw error;
+    }
+  }
+
+  // Renew existing subscription
+  static async renewSubscriptionWebhook(subscription, payment) {
+    try {
+      // Extend subscription period
+      const currentEndDate = new Date(subscription.endDate);
+      const newEndDate = new Date(currentEndDate);
+
+      if (subscription.plan === 'monthly') {
+        newEndDate.setDate(newEndDate.getDate() + 30);
+      } else if (subscription.plan === 'yearly') {
+        newEndDate.setDate(newEndDate.getDate() + 365);
+      }
+
+      subscription.endDate = newEndDate;
+
+      // Set next billing date
+      const nextBilling = new Date(newEndDate);
+      if (subscription.plan === 'monthly') {
+        nextBilling.setDate(nextBilling.getDate() + 30);
+      } else if (subscription.plan === 'yearly') {
+        nextBilling.setDate(nextBilling.getDate() + 365);
+      }
+      subscription.nextBillingDate = nextBilling;
+
+      // Update payment details
+      subscription.paymentId = payment.id;
+      subscription.lastSuccessfulPayment = new Date();
+      subscription.failedPaymentCount = 0;
+      subscription.status = 'active';
+
+      await subscription.save();
+
+      console.log(`Subscription renewed: ${subscription._id}`);
+    } catch (error) {
+      console.error('Error renewing subscription:', error);
+      throw error;
+    }
+  }
+
+  // Handle subscription cancelled event
+  static async handleSubscriptionCancelled(payload) {
+    try {
+      const { subscription } = payload;
+
+      const dbSubscription = await Subscription.findOne({
+        razorpaySubscriptionId: subscription.entity.id
+      });
+
+      if (!dbSubscription) {
+        console.error(`Subscription not found: ${subscription.entity.id}`);
+        return {
+          success: false,
+          error: `Subscription not found: ${subscription.entity.id}`
+        };
+      }
+
+      dbSubscription.status = 'cancelled';
+      dbSubscription.cancelledAt = new Date();
+      dbSubscription.autoRenew = false;
+
+      await dbSubscription.save();
+
+      return {
+        success: true,
+        message: `Subscription cancelled: ${subscription.entity.id}`
+      };
+    } catch (error) {
+      console.error('Error handling subscription cancelled:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Handle subscription completed event
+  static async handleSubscriptionCompleted(payload) {
+    try {
+      const { subscription } = payload;
+
+      const dbSubscription = await Subscription.findOne({
+        razorpaySubscriptionId: subscription.entity.id
+      });
+
+      if (!dbSubscription) {
+        console.error(`Subscription not found: ${subscription.entity.id}`);
+        return {
+          success: false,
+          error: `Subscription not found: ${subscription.entity.id}`
+        };
+      }
+
+      dbSubscription.status = 'expired';
+      dbSubscription.autoRenew = false;
+
+      await dbSubscription.save();
+
+      return {
+        success: true,
+        message: `Subscription completed: ${subscription.entity.id}`
+      };
+    } catch (error) {
+      console.error('Error handling subscription completed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Handle payment failed event
+  static async handlePaymentFailed(payload) {
+    try {
+      const { payment } = payload;
+
+      // Find subscription by payment details
+      const dbSubscription = await Subscription.findOne({
+        razorpaySubscriptionId: payment.entity.subscription_id
+      });
+
+      if (!dbSubscription) {
+        console.error(`Subscription not found for failed payment: ${payment.entity.subscription_id}`);
+        return {
+          success: false,
+          error: `Subscription not found for failed payment: ${payment.entity.subscription_id}`
+        };
+      }
+
+      // Increment failed payment count
+      dbSubscription.failedPaymentCount += 1;
+      dbSubscription.lastRenewalAttempt = new Date();
+
+      // If too many failures, mark as expired
+      if (dbSubscription.failedPaymentCount >= 3) {
+        dbSubscription.status = 'expired';
+        dbSubscription.autoRenew = false;
+        dbSubscription.cancelReason = 'Payment failed multiple times';
+      }
+
+      await dbSubscription.save();
+
+      return {
+        success: true,
+        message: `Payment failed for subscription: ${payment.entity.subscription_id}`
+      };
+    } catch (error) {
+      console.error('Error handling payment failed:', error);
       return {
         success: false,
         error: error.message

@@ -48,6 +48,22 @@ class PaymentService {
     }
   }
 
+  // Verify Razorpay subscription signature
+  static verifyRazorpaySubscriptionSignature(subscriptionId, paymentId, signature) {
+    try {
+      const body = subscriptionId + '|' + paymentId;
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(body.toString())
+        .digest('hex');
+
+      return expectedSignature === signature;
+    } catch (error) {
+      console.error('Subscription signature verification error:', error);
+      return false;
+    }
+  }
+
   // Get payment details from Razorpay
   static async getPaymentDetails(paymentId) {
     try {
@@ -294,6 +310,62 @@ class PaymentService {
       };
     } catch (error) {
       console.error('Trial-to-monthly plan creation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
+  static async createAutoRecurringTrialSubscription(userId, customerData) {
+    try {
+      // Create Razorpay customer
+      const customerResult = await this.createRazorpayCustomer(customerData);
+      if (!customerResult.success) {
+        throw new Error(`Customer creation failed: ${customerResult.error}`);
+      }
+
+      // Create monthly plan (₹117/month) for auto-recurring
+      const planId = `trial_monthly_${Date.now()}`;
+      const monthlyPlanResult = await this.createRazorpayPlan(
+        planId,
+        11700, // ₹117 in paise (monthly amount after trial)
+        'monthly'
+      );
+
+      if (!monthlyPlanResult.success) {
+        throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
+      }
+
+      // Create Razorpay subscription with trial period
+      const trialOptions = {
+        trial_period: 5, // 5 days trial
+        trial_amount: 100 // ₹1 in paise for trial
+      };
+
+      const subscriptionResult = await this.createRazorpaySubscription(
+        monthlyPlanResult.plan.id,
+        customerResult.customer.id,
+        120, // 120 cycles (10 years)
+        trialOptions
+      );
+
+      if (!subscriptionResult.success) {
+        throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
+      }
+
+      return {
+        success: true,
+        subscription: subscriptionResult.subscription,
+        plan: monthlyPlanResult.plan,
+        customer: customerResult.customer,
+        trialAmount: 100, // ₹1
+        monthlyAmount: 11700, // ₹117
+        trialPeriod: 5 // 5 days
+      };
+    } catch (error) {
+      console.error('Auto-recurring trial subscription creation error:', error);
       return {
         success: false,
         error: error.message

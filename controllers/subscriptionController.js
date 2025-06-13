@@ -69,8 +69,46 @@ const createOrder = async (req, res) => {
 
     let result;
 
-    if (plan === 'trial' || subscriptionType === 'one-time') {
-      // Create one-time payment order for trial
+    if (plan === 'trial') {
+      // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
+      const customerData = {
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone || ''
+      };
+
+      result = await SubscriptionService.createAutoRecurringTrialSubscription(req.user.id, customerData);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.error
+        });
+      }
+
+      // Return subscription_id for auto-recurring trial (frontend expects this)
+      res.status(200).json({
+        success: true,
+        data: {
+          orderId: result.razorpaySubscription.id, // This is actually subscription_id
+          subscription_id: result.razorpaySubscription.id, // Explicit subscription_id for frontend
+          amount: result.trialAmount, // ₹1 for trial
+          currency: 'INR',
+          plan: plan,
+          subscriptionDetails: {
+            subscriptionId: result.subscription._id,
+            customerId: result.razorpayCustomer.id,
+            planId: result.razorpayPlan.id,
+            trialPeriod: result.trialPeriod,
+            trialAmount: result.trialAmount,
+            monthlyAmount: result.monthlyAmount
+          },
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          type: 'auto-recurring-trial'
+        }
+      });
+    } else if (subscriptionType === 'one-time') {
+      // Create one-time payment order for non-trial plans
       result = await PaymentService.createSubscriptionOrder(req.user.id, plan);
 
       if (!result.success) {
@@ -157,26 +195,58 @@ const verifyPayment = async (req, res) => {
 
     let subscriptionResult;
 
-    // Handle recurring subscription (monthly/yearly)
+    // Handle subscription payment (auto-recurring trial or regular subscription)
     if (razorpay_subscription_id) {
-      // For recurring subscriptions, we verify the subscription payment
-      if (!razorpay_subscription_id) {
+      // For subscription payments, verify the subscription signature
+      if (!razorpay_subscription_id || !razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({
           success: false,
-          message: 'Subscription ID is required for recurring payments'
+          message: 'Missing required payment details for subscription'
         });
       }
 
-      // Activate the pending subscription
-      subscriptionResult = await SubscriptionService.activateRecurringSubscription(
-        req.user.id,
+      // Verify subscription signature
+      const isValidSignature = PaymentService.verifyRazorpaySubscriptionSignature(
         razorpay_subscription_id,
-        {
-          paymentId: razorpay_payment_id,
-          orderId: razorpay_order_id,
-          signature: razorpay_signature
-        }
+        razorpay_payment_id,
+        razorpay_signature
       );
+
+      if (!isValidSignature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid subscription payment signature'
+        });
+      }
+
+      if (plan === 'trial') {
+        // Handle auto-recurring trial subscription activation
+        subscriptionResult = await SubscriptionService.activateAutoRecurringTrialSubscription(
+          req.user.id,
+          {
+            subscriptionId: razorpay_subscription_id,
+            paymentId: razorpay_payment_id,
+            signature: razorpay_signature
+          }
+        );
+
+        // Mark trial as used if activation is successful
+        if (subscriptionResult.success) {
+          const user = await User.findById(req.user.id);
+          await user.markTrialUsed();
+        }
+      } else {
+        // Handle regular recurring subscription payment
+        subscriptionResult = await SubscriptionService.activateRecurringSubscription(
+          req.user.id,
+          razorpay_subscription_id,
+          {
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
+            signature: razorpay_signature
+          }
+        );
+      }
     } else {
       // Handle one-time payment (trial)
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
