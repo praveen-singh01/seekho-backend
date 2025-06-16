@@ -115,7 +115,18 @@ const getPlans = async (req, res) => {
 // @access  Private
 const createOrder = async (req, res) => {
   try {
-    const { plan } = req.body;
+    let { plan } = req.body;
+
+    // Map Razorpay plan IDs to plan types if needed
+    const planMapping = {
+      [process.env.RAZORPAY_MONTHLY_PLAN_ID]: 'monthly',
+      [process.env.RAZORPAY_YEARLY_PLAN_ID]: 'yearly'
+    };
+
+    // If plan is a Razorpay plan ID, convert it to plan type
+    if (planMapping[plan]) {
+      plan = planMapping[plan];
+    }
 
     if (!['trial', 'monthly', 'yearly'].includes(plan)) {
       return res.status(400).json({
@@ -124,9 +135,18 @@ const createOrder = async (req, res) => {
       });
     }
 
+    // Get user for trial eligibility check
+    const user = await User.findById(req.user.id);
+
+    // For trial, frontend might send the monthly plan ID but with freeTrial=true
+    // We need to check if this should be treated as trial based on user eligibility
+    if (plan === 'monthly' && user.isTrialEligible()) {
+      // If user is trial eligible and selecting monthly, treat as trial
+      plan = 'trial';
+    }
+
     // Check trial eligibility
     if (plan === 'trial') {
-      const user = await User.findById(req.user.id);
       if (!user.isTrialEligible()) {
         return res.status(400).json({
           success: false,
@@ -249,7 +269,7 @@ const createOrder = async (req, res) => {
 // @access  Private
 const verifyPayment = async (req, res) => {
   try {
-    const {
+    let {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
@@ -262,6 +282,25 @@ const verifyPayment = async (req, res) => {
         success: false,
         message: 'Plan is required'
       });
+    }
+
+    // Map Razorpay plan IDs to plan types if needed
+    const planMapping = {
+      [process.env.RAZORPAY_MONTHLY_PLAN_ID]: 'monthly',
+      [process.env.RAZORPAY_YEARLY_PLAN_ID]: 'yearly'
+    };
+
+    // If plan is a Razorpay plan ID, convert it to plan type
+    if (planMapping[plan]) {
+      plan = planMapping[plan];
+    }
+
+    // For trial, check if this should be treated as trial
+    if (plan === 'monthly') {
+      const user = await User.findById(req.user.id);
+      if (user.isTrialEligible()) {
+        plan = 'trial';
+      }
     }
 
     let subscriptionResult;

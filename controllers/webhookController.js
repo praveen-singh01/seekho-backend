@@ -8,7 +8,7 @@ const handleRazorpayWebhook = async (req, res) => {
   try {
     const webhookSignature = req.headers['x-razorpay-signature'];
     const webhookBody = JSON.stringify(req.body);
-    
+
     // Verify webhook signature
     if (!verifyWebhookSignature(webhookBody, webhookSignature)) {
       console.error('Invalid webhook signature');
@@ -19,12 +19,12 @@ const handleRazorpayWebhook = async (req, res) => {
     }
 
     const { event, payload } = req.body;
-    
+
     console.log(`Received Razorpay webhook: ${event}`);
-    
+
     // Process the webhook event
     const result = await SubscriptionService.handleWebhook(event, payload);
-    
+
     if (result.success) {
       res.status(200).json({
         success: true,
@@ -50,7 +50,7 @@ const handleRazorpayWebhook = async (req, res) => {
 const verifyWebhookSignature = (body, signature) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    
+
     if (!webhookSecret) {
       console.error('RAZORPAY_WEBHOOK_SECRET not configured');
       return false;
@@ -90,7 +90,37 @@ const testWebhook = async (req, res) => {
   }
 };
 
+// @desc    Debug subscriptions
+// @route   GET /api/webhooks/debug-subscriptions
+// @access  Public
+const debugSubscriptions = async (req, res) => {
+  try {
+    const Subscription = require('../models/Subscription');
+
+    const subscriptions = await Subscription.find({}, 'razorpaySubscriptionId plan status createdAt').limit(10);
+
+    res.status(200).json({
+      success: true,
+      count: subscriptions.length,
+      subscriptions: subscriptions.map(s => ({
+        id: s._id,
+        razorpayId: s.razorpaySubscriptionId,
+        plan: s.plan,
+        status: s.status,
+        createdAt: s.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Debug subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   handleRazorpayWebhook,
-  testWebhook
+  testWebhook,
+  debugSubscriptions
 };

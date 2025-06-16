@@ -471,6 +471,7 @@ class SubscriptionService {
   static async handleWebhook(event, payload) {
     try {
       console.log(`Processing webhook event: ${event}`);
+      console.log('Webhook payload structure:', JSON.stringify(payload, null, 2));
 
       switch (event) {
         case 'subscription.charged':
@@ -501,21 +502,56 @@ class SubscriptionService {
   // Handle subscription charged webhook
   static async handleSubscriptionCharged(payload) {
     try {
-      const subscriptionId = payload.subscription.entity.id;
+      // Handle different payload structures
+      let subscriptionId;
+      let paymentData;
+
+      if (payload.subscription && payload.subscription.entity) {
+        // New payload structure
+        subscriptionId = payload.subscription.entity.id;
+        paymentData = payload.payment ? payload.payment.entity : null;
+      } else if (payload.entity && payload.entity.subscription_id) {
+        // Alternative payload structure
+        subscriptionId = payload.entity.subscription_id;
+        paymentData = payload.entity;
+      } else {
+        console.error('Unknown payload structure for subscription.charged:', payload);
+        return { success: false, error: 'Invalid payload structure' };
+      }
+
+      console.log(`Looking for subscription with Razorpay ID: ${subscriptionId}`);
+
       const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
 
       if (!subscription) {
-        console.log(`Subscription not found for Razorpay ID: ${subscriptionId}`);
-        return { success: false, error: 'Subscription not found' };
+        console.error(`Subscription not found: ${subscriptionId}`);
+        // Log all subscriptions for debugging
+        const allSubscriptions = await Subscription.find({}, 'razorpaySubscriptionId plan status').limit(10);
+        console.log('Available subscriptions:', allSubscriptions.map(s => ({
+          id: s._id,
+          razorpayId: s.razorpaySubscriptionId,
+          plan: s.plan,
+          status: s.status
+        })));
+        return { success: false, error: `Subscription not found: ${subscriptionId}` };
       }
 
-      // Update subscription with successful payment
-      const { endDate } = PaymentService.calculateSubscriptionDates(subscription.plan);
-      await subscription.renew(endDate, payload.payment.entity.id, payload.payment.entity.order_id);
-      await subscription.updateFromWebhook({ event: 'subscription.charged' });
-
-      console.log(`Subscription ${subscription._id} renewed successfully via webhook`);
-      return { success: true, message: 'Subscription renewed' };
+      // Check if this is a trial conversion (first auto-billing after trial)
+      if (subscription.isTrialSubscription && subscription.plan === 'trial') {
+        // Convert trial to monthly subscription
+        await this.convertTrialToMonthlyWebhook(subscription, paymentData);
+        return {
+          success: true,
+          message: `Trial converted to monthly: ${subscriptionId}`
+        };
+      } else {
+        // Regular subscription renewal
+        await this.renewSubscriptionWebhook(subscription, paymentData);
+        return {
+          success: true,
+          message: `Subscription renewed: ${subscriptionId}`
+        };
+      }
     } catch (error) {
       console.error('Handle subscription charged error:', error);
       return { success: false, error: error.message };
@@ -525,19 +561,36 @@ class SubscriptionService {
   // Handle subscription cancelled webhook
   static async handleSubscriptionCancelled(payload) {
     try {
-      const subscriptionId = payload.subscription.entity.id;
+      // Handle different payload structures
+      let subscriptionId;
+
+      if (payload.subscription && payload.subscription.entity) {
+        subscriptionId = payload.subscription.entity.id;
+      } else if (payload.entity && payload.entity.id) {
+        subscriptionId = payload.entity.id;
+      } else {
+        console.error('Unknown payload structure for subscription.cancelled:', payload);
+        return { success: false, error: 'Invalid payload structure' };
+      }
+
+      console.log(`Looking for subscription to cancel with Razorpay ID: ${subscriptionId}`);
+
       const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
 
       if (!subscription) {
-        console.log(`Subscription not found for Razorpay ID: ${subscriptionId}`);
-        return { success: false, error: 'Subscription not found' };
+        console.error(`Subscription not found: ${subscriptionId}`);
+        return { success: false, error: `Subscription not found: ${subscriptionId}` };
       }
 
-      await subscription.cancel('Cancelled via Razorpay webhook');
-      await subscription.updateFromWebhook({ event: 'subscription.cancelled' });
+      subscription.status = 'cancelled';
+      subscription.cancelledAt = new Date();
+      subscription.autoRenew = false;
+      subscription.cancelReason = 'Cancelled via Razorpay webhook';
+
+      await subscription.save();
 
       console.log(`Subscription ${subscription._id} cancelled via webhook`);
-      return { success: true, message: 'Subscription cancelled' };
+      return { success: true, message: `Subscription cancelled: ${subscriptionId}` };
     } catch (error) {
       console.error('Handle subscription cancelled error:', error);
       return { success: false, error: error.message };
@@ -547,21 +600,34 @@ class SubscriptionService {
   // Handle subscription completed webhook
   static async handleSubscriptionCompleted(payload) {
     try {
-      const subscriptionId = payload.subscription.entity.id;
+      // Handle different payload structures
+      let subscriptionId;
+
+      if (payload.subscription && payload.subscription.entity) {
+        subscriptionId = payload.subscription.entity.id;
+      } else if (payload.entity && payload.entity.id) {
+        subscriptionId = payload.entity.id;
+      } else {
+        console.error('Unknown payload structure for subscription.completed:', payload);
+        return { success: false, error: 'Invalid payload structure' };
+      }
+
+      console.log(`Looking for subscription to complete with Razorpay ID: ${subscriptionId}`);
+
       const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
 
       if (!subscription) {
-        console.log(`Subscription not found for Razorpay ID: ${subscriptionId}`);
-        return { success: false, error: 'Subscription not found' };
+        console.error(`Subscription not found: ${subscriptionId}`);
+        return { success: false, error: `Subscription not found: ${subscriptionId}` };
       }
 
       subscription.status = 'expired';
       subscription.autoRenew = false;
+
       await subscription.save();
-      await subscription.updateFromWebhook({ event: 'subscription.completed' });
 
       console.log(`Subscription ${subscription._id} completed via webhook`);
-      return { success: true, message: 'Subscription completed' };
+      return { success: true, message: `Subscription completed: ${subscriptionId}` };
     } catch (error) {
       console.error('Handle subscription completed error:', error);
       return { success: false, error: error.message };
@@ -571,24 +637,51 @@ class SubscriptionService {
   // Handle payment failed webhook
   static async handlePaymentFailed(payload) {
     try {
+      // Handle different payload structures
+      let subscriptionId;
+      let paymentId;
+
+      if (payload.payment && payload.payment.entity) {
+        paymentId = payload.payment.entity.id;
+        subscriptionId = payload.payment.entity.subscription_id;
+      } else if (payload.entity) {
+        paymentId = payload.entity.id;
+        subscriptionId = payload.entity.subscription_id;
+      } else {
+        console.error('Unknown payload structure for payment.failed:', payload);
+        return { success: false, error: 'Invalid payload structure' };
+      }
+
+      console.log(`Looking for subscription for failed payment. Subscription ID: ${subscriptionId}, Payment ID: ${paymentId}`);
+
       // Find subscription by payment details
       const subscription = await Subscription.findOne({
         $or: [
-          { paymentId: payload.payment.entity.id },
-          { razorpaySubscriptionId: payload.subscription?.entity?.id }
+          { paymentId: paymentId },
+          { razorpaySubscriptionId: subscriptionId }
         ]
       });
 
       if (!subscription) {
-        console.log(`Subscription not found for failed payment`);
-        return { success: false, error: 'Subscription not found' };
+        console.error(`Subscription not found for failed payment: ${subscriptionId}`);
+        return { success: false, error: `Subscription not found for failed payment: ${subscriptionId}` };
       }
 
-      await subscription.handleFailedPayment();
-      await subscription.updateFromWebhook({ event: 'payment.failed' });
+      // Increment failed payment count
+      subscription.failedPaymentCount = (subscription.failedPaymentCount || 0) + 1;
+      subscription.lastRenewalAttempt = new Date();
+
+      // If too many failures, mark as expired
+      if (subscription.failedPaymentCount >= 3) {
+        subscription.status = 'expired';
+        subscription.autoRenew = false;
+        subscription.cancelReason = 'Payment failed multiple times';
+      }
+
+      await subscription.save();
 
       console.log(`Payment failed handled for subscription ${subscription._id}`);
-      return { success: true, message: 'Payment failure handled' };
+      return { success: true, message: `Payment failed for subscription: ${subscriptionId}` };
     } catch (error) {
       console.error('Handle payment failed error:', error);
       return { success: false, error: error.message };
@@ -932,80 +1025,7 @@ class SubscriptionService {
     }
   }
 
-  // Handle webhook events
-  static async handleWebhook(event, payload) {
-    try {
-      switch (event) {
-        case 'subscription.charged':
-          return await this.handleSubscriptionCharged(payload);
 
-        case 'subscription.cancelled':
-          return await this.handleSubscriptionCancelled(payload);
-
-        case 'subscription.completed':
-          return await this.handleSubscriptionCompleted(payload);
-
-        case 'payment.failed':
-          return await this.handlePaymentFailed(payload);
-
-        default:
-          console.log(`Unhandled webhook event: ${event}`);
-          return {
-            success: true,
-            message: `Event ${event} acknowledged but not processed`
-          };
-      }
-    } catch (error) {
-      console.error('Webhook handling error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  // Handle subscription charged event (auto-billing)
-  static async handleSubscriptionCharged(payload) {
-    try {
-      const { subscription, payment } = payload;
-
-      // Find subscription in our database
-      const dbSubscription = await Subscription.findOne({
-        razorpaySubscriptionId: subscription.entity.id
-      }).populate('user');
-
-      if (!dbSubscription) {
-        console.error(`Subscription not found: ${subscription.entity.id}`);
-        return {
-          success: false,
-          error: `Subscription not found: ${subscription.entity.id}`
-        };
-      }
-
-      // Check if this is a trial conversion (first auto-billing after trial)
-      if (dbSubscription.isTrialSubscription && dbSubscription.plan === 'trial') {
-        // Convert trial to monthly subscription
-        await this.convertTrialToMonthlyWebhook(dbSubscription, payment.entity);
-        return {
-          success: true,
-          message: `Trial converted to monthly: ${subscription.entity.id}`
-        };
-      } else {
-        // Regular subscription renewal
-        await this.renewSubscriptionWebhook(dbSubscription, payment.entity);
-        return {
-          success: true,
-          message: `Subscription renewed: ${subscription.entity.id}`
-        };
-      }
-    } catch (error) {
-      console.error('Error handling subscription charged:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
 
   // Convert trial subscription to monthly after auto-billing
   static async convertTrialToMonthlyWebhook(subscription, payment) {
@@ -1079,120 +1099,7 @@ class SubscriptionService {
     }
   }
 
-  // Handle subscription cancelled event
-  static async handleSubscriptionCancelled(payload) {
-    try {
-      const { subscription } = payload;
 
-      const dbSubscription = await Subscription.findOne({
-        razorpaySubscriptionId: subscription.entity.id
-      });
-
-      if (!dbSubscription) {
-        console.error(`Subscription not found: ${subscription.entity.id}`);
-        return {
-          success: false,
-          error: `Subscription not found: ${subscription.entity.id}`
-        };
-      }
-
-      dbSubscription.status = 'cancelled';
-      dbSubscription.cancelledAt = new Date();
-      dbSubscription.autoRenew = false;
-
-      await dbSubscription.save();
-
-      return {
-        success: true,
-        message: `Subscription cancelled: ${subscription.entity.id}`
-      };
-    } catch (error) {
-      console.error('Error handling subscription cancelled:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  // Handle subscription completed event
-  static async handleSubscriptionCompleted(payload) {
-    try {
-      const { subscription } = payload;
-
-      const dbSubscription = await Subscription.findOne({
-        razorpaySubscriptionId: subscription.entity.id
-      });
-
-      if (!dbSubscription) {
-        console.error(`Subscription not found: ${subscription.entity.id}`);
-        return {
-          success: false,
-          error: `Subscription not found: ${subscription.entity.id}`
-        };
-      }
-
-      dbSubscription.status = 'expired';
-      dbSubscription.autoRenew = false;
-
-      await dbSubscription.save();
-
-      return {
-        success: true,
-        message: `Subscription completed: ${subscription.entity.id}`
-      };
-    } catch (error) {
-      console.error('Error handling subscription completed:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  // Handle payment failed event
-  static async handlePaymentFailed(payload) {
-    try {
-      const { payment } = payload;
-
-      // Find subscription by payment details
-      const dbSubscription = await Subscription.findOne({
-        razorpaySubscriptionId: payment.entity.subscription_id
-      });
-
-      if (!dbSubscription) {
-        console.error(`Subscription not found for failed payment: ${payment.entity.subscription_id}`);
-        return {
-          success: false,
-          error: `Subscription not found for failed payment: ${payment.entity.subscription_id}`
-        };
-      }
-
-      // Increment failed payment count
-      dbSubscription.failedPaymentCount += 1;
-      dbSubscription.lastRenewalAttempt = new Date();
-
-      // If too many failures, mark as expired
-      if (dbSubscription.failedPaymentCount >= 3) {
-        dbSubscription.status = 'expired';
-        dbSubscription.autoRenew = false;
-        dbSubscription.cancelReason = 'Payment failed multiple times';
-      }
-
-      await dbSubscription.save();
-
-      return {
-        success: true,
-        message: `Payment failed for subscription: ${payment.entity.subscription_id}`
-      };
-    } catch (error) {
-      console.error('Error handling payment failed:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
 }
 
 module.exports = SubscriptionService;

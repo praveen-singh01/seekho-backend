@@ -1,5 +1,5 @@
 const express = require('express');
-const { handleRazorpayWebhook, testWebhook } = require('../controllers/webhookController');
+const { handleRazorpayWebhook, testWebhook, debugSubscriptions } = require('../controllers/webhookController');
 
 const router = express.Router();
 
@@ -12,5 +12,10 @@ router.post('/razorpay', handleRazorpayWebhook);
 // @desc    Test webhook endpoint
 // @access  Public
 router.get('/test', testWebhook);
+
+// @route   GET /api/webhooks/debug-subscriptions
+// @desc    Debug subscriptions
+// @access  Public
+router.get('/debug-subscriptions', debugSubscriptions);
 
 module.exports = router;
