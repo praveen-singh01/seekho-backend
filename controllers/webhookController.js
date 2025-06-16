@@ -35,6 +35,45 @@ const checkIfShouldIgnoreWebhook = (payload) => {
     }
   }
 
+  // Check payment webhooks - look for order description or amount patterns
+  if (payload && payload.payment && payload.payment.entity) {
+    const payment = payload.payment.entity;
+
+    // Check if payment is from a different app based on description
+    if (payment.description && payment.description.includes('Suvichar')) {
+      return {
+        ignore: true,
+        reason: `Payment from different app: ${payment.description}`
+      };
+    }
+
+    // Specifically ignore ₹5 payments (500 paise) as they're likely from Suvichar
+    if (payment.amount === 500) {
+      return {
+        ignore: true,
+        reason: `₹5 payment likely from Suvichar app`
+      };
+    }
+
+    // Check for specific amounts that don't match our plans
+    // Our plans: ₹1 (100 paise), ₹117 (11700 paise), ₹499 (49900 paise)
+    const validAmounts = [100, 11700, 49900];
+    if (payment.amount && !validAmounts.includes(payment.amount)) {
+      return {
+        ignore: true,
+        reason: `Payment amount ${payment.amount} paise (₹${payment.amount/100}) doesn't match our plans`
+      };
+    }
+
+    // Check order_id patterns - Suvichar might have different order ID patterns
+    if (payment.order_id && payment.order_id.includes('suvichar')) {
+      return {
+        ignore: true,
+        reason: `Order from different app: ${payment.order_id}`
+      };
+    }
+  }
+
   return { ignore: false };
 };
 
@@ -74,6 +113,20 @@ const handleRazorpayWebhook = async (req, res) => {
           packageName: subscription.notes.packageName,
           userId: subscription.notes.userId
         });
+      }
+    }
+
+    // Log payment webhook details
+    if (payload && payload.payment && payload.payment.entity) {
+      const payment = payload.payment.entity;
+      console.log(`💳 Payment ID: ${payment.id}`);
+      console.log(`📋 Order ID: ${payment.order_id}`);
+      console.log(`💰 Amount: ${payment.amount} paise (₹${payment.amount/100})`);
+      console.log(`📝 Description: ${payment.description}`);
+      console.log(`📧 Email: ${payment.email}`);
+      console.log(`📱 Status: ${payment.status}`);
+      if (payment.error_reason) {
+        console.log(`❌ Error: ${payment.error_reason} - ${payment.error_description}`);
       }
     }
 
@@ -182,6 +235,42 @@ const debugSubscriptions = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+};
+
+// @desc    Debug environment and pricing
+// @route   GET /api/webhooks/debug-pricing
+// @access  Public
+const debugPricing = async (req, res) => {
+  try {
+    const PaymentService = require('../services/paymentService');
+
+    res.status(200).json({
+      success: true,
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        TRIAL_PRICE: process.env.TRIAL_PRICE,
+        MONTHLY_PRICE: process.env.MONTHLY_PRICE,
+        YEARLY_PRICE: process.env.YEARLY_PRICE,
+        TRIAL_DURATION_DAYS: process.env.TRIAL_DURATION_DAYS,
+        RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? 'Set' : 'Not Set',
+        RAZORPAY_MONTHLY_PLAN_ID: process.env.RAZORPAY_MONTHLY_PLAN_ID,
+        RAZORPAY_YEARLY_PLAN_ID: process.env.RAZORPAY_YEARLY_PLAN_ID
+      },
+      calculatedPrices: {
+        trial: PaymentService.calculateSubscriptionDates('trial'),
+        monthly: PaymentService.calculateSubscriptionDates('monthly'),
+        yearly: PaymentService.calculateSubscriptionDates('yearly')
+      },
+      plans: PaymentService.getSubscriptionPlans()
+    });
+  } catch (error) {
+    console.error('Debug pricing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
     });
   }
 };
