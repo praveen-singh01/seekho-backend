@@ -5,41 +5,102 @@ const PaymentService = require('../services/paymentService');
 
 // @desc    Get subscription plans
 // @route   GET /api/subscriptions/plans
-// @access  Public
+// @access  Public (but returns different data if authenticated)
 const getPlans = async (req, res) => {
   try {
-    const { detailed = false } = req.query;
+    let user = null;
+    let isTrialEligible = true;
+    let activeSubscription = null;
+    let hasEverPurchased = false;
 
-    let plans;
+    // Check if user is authenticated (optional)
+    if (req.user && req.user.id) {
+      try {
+        user = await User.findById(req.user.id);
+        if (user) {
+          isTrialEligible = user.isTrialEligible();
 
-    if (detailed === 'true') {
-      // Get plans with actual Razorpay plan details
-      const result = await PaymentService.getSubscriptionPlansWithDetails();
-      plans = result.plans;
+          // Get user's active subscription
+          const subscriptionResult = await SubscriptionService.getUserSubscription(req.user.id);
+          if (subscriptionResult.success && subscriptionResult.subscription) {
+            activeSubscription = subscriptionResult.subscription;
+          }
 
-      if (!result.success) {
-        console.warn('Failed to fetch detailed plans, using basic plans:', result.error);
+          // Check if user has ever purchased (has any subscription record)
+          const hasSubscriptionHistory = await Subscription.findOne({ user: req.user.id });
+          hasEverPurchased = !!hasSubscriptionHistory;
+        }
+      } catch (error) {
+        console.warn('Error fetching user data for plans:', error.message);
+        // Continue with default values if user fetch fails
       }
-    } else {
-      // Get basic plans with environment variable values
-      plans = PaymentService.getSubscriptionPlans();
     }
 
-    res.status(200).json({
-      success: true,
-      data: plans,
-      meta: {
-        planIds: {
-          monthly: process.env.RAZORPAY_MONTHLY_PLAN_ID,
-          yearly: process.env.RAZORPAY_YEARLY_PLAN_ID
-        },
-        pricing: {
-          trial: `₹${parseInt(process.env.TRIAL_PRICE || 100) / 100}`,
-          monthly: `₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}`,
-          yearly: `₹${parseInt(process.env.YEARLY_PRICE || 49900) / 100}`
-        }
+    // Generate unique package IDs (you can use UUIDs or any consistent ID generation)
+    const monthlyPackageId = "05bd18be-6d18-421b-898e-8148e185f0ce";
+    const yearlyPackageId = "a7b7e439-56b1-7e2b-b5a8-9820d3b54136";
+
+    // Build subscription list
+    const subscriptionList = [
+      {
+        packageId: monthlyPackageId,
+        label: "Monthly",
+        price: 99, // Base price without GST
+        priceAfterTax: 117, // Price with 18% GST
+        strikePrice: 0, // No strike price for monthly
+        freeTrial: isTrialEligible,
+        trialPrice: isTrialEligible ? 1 : 0, // ₹1 if eligible, ₹0 if not
+        planId: process.env.RAZORPAY_MONTHLY_PLAN_ID,
+        validityInDays: 30
+      },
+      {
+        packageId: yearlyPackageId,
+        label: "Annually",
+        price: 499, // Base price without GST
+        priceAfterTax: 587, // Price with 18% GST (499 + 88)
+        strikePrice: 0, // No strike price for yearly
+        freeTrial: false, // Yearly plan doesn't have trial
+        trialPrice: 0,
+        planId: process.env.RAZORPAY_YEARLY_PLAN_ID,
+        validityInDays: 365
       }
-    });
+    ];
+
+    // Determine subscription status
+    let subscriptionStatus = "NO_ACTIVE_SUBSCRIPTIONS";
+    let premiumUser = false;
+    let premiumTill = 0;
+
+    if (activeSubscription) {
+      if (activeSubscription.status === 'active' && activeSubscription.endDate > new Date()) {
+        premiumUser = true;
+        premiumTill = Math.floor(activeSubscription.endDate.getTime() / 1000); // Unix timestamp
+
+        if (activeSubscription.plan === 'trial') {
+          subscriptionStatus = "TRIAL_ACTIVE";
+        } else if (activeSubscription.autoRenew) {
+          subscriptionStatus = "ACTIVE_RECURRING";
+        } else {
+          subscriptionStatus = "ACTIVE_NON_RECURRING";
+        }
+      } else if (activeSubscription.status === 'cancelled') {
+        subscriptionStatus = "CANCELLED";
+      } else if (activeSubscription.status === 'expired') {
+        subscriptionStatus = "EXPIRED";
+      }
+    }
+
+    // Response in the format you specified
+    const response = {
+      subscriptionList,
+      premiumUser,
+      premiumTill,
+      subscriptionStatus,
+      previouslyPurchased: hasEverPurchased,
+      apiKey: process.env.RAZORPAY_KEY_ID
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     console.error('Get plans error:', error);
     res.status(500).json({
@@ -54,7 +115,7 @@ const getPlans = async (req, res) => {
 // @access  Private
 const createOrder = async (req, res) => {
   try {
-    const { plan, subscriptionType = 'recurring' } = req.body;
+    const { plan } = req.body;
 
     if (!['trial', 'monthly', 'yearly'].includes(plan)) {
       return res.status(400).json({
@@ -115,44 +176,26 @@ const createOrder = async (req, res) => {
       res.status(200).json({
         success: true,
         data: {
-          subscription_id: result.razorpaySubscription.id, // Subscription ID for UPI mandate
+          // Standardized fields for frontend
+          subscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID for payment
+          orderId: null, // No order ID for subscription-based payments
           amount: result.firstPaymentAmount, // ₹1 charged immediately via addon
           mandateAmount: result.mandateAmount, // ₹117 UPI mandate for future billing
           currency: 'INR',
           plan: plan,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          type: 'recurring-subscription', // Trial via subscription with mandate
+
+          // Additional details
           subscriptionDetails: {
-            subscriptionId: result.subscription._id,
+            dbSubscriptionId: result.subscription._id, // Our database subscription ID
+            razorpaySubscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID
             customerId: result.subscription.razorpayCustomerId,
             trialPeriod: 5,
             trialAmount: 100,
             monthlyAmount: 11700,
             nextBillingDate: result.subscription.nextBillingDate
-          },
-          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'trial-addon-mandate' // Trial via addon + UPI mandate for ₹117
-        }
-      });
-    } else if (subscriptionType === 'one-time') {
-      // Create one-time payment order for non-trial plans
-      result = await PaymentService.createSubscriptionOrder(req.user.id, plan);
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.error
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          orderId: result.order.id,
-          amount: result.order.amount,
-          currency: result.order.currency,
-          plan: plan,
-          subscriptionDetails: result.subscriptionDetails,
-          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'one-time'
+          }
         }
       });
     } else {
@@ -172,18 +215,21 @@ const createOrder = async (req, res) => {
         });
       }
 
-      // Return the response structure expected by frontend
+      // Standardized response format
       res.status(200).json({
         success: true,
         data: {
-          orderId: result.razorpaySubscription?.id || result.subscription.razorpaySubscriptionId,
+          subscriptionId: result.razorpaySubscription?.id || result.subscription.razorpaySubscriptionId,
           amount: result.subscription.amount,
           currency: result.subscription.currency,
           plan: result.subscription.plan,
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'recurring',
+          type: 'recurring-subscription',
+
+          // Additional details
           subscriptionDetails: {
-            subscriptionId: result.subscription._id,
+            dbSubscriptionId: result.subscription._id, // Our database subscription ID
+            razorpaySubscriptionId: result.razorpaySubscription?.id || result.subscription.razorpaySubscriptionId,
             customerId: result.subscription.razorpayCustomerId
           }
         }

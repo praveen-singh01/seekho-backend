@@ -35,9 +35,7 @@ const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
 
 // Import services
-const CronService = require('./services/cronService');
 const PaymentService = require('./services/paymentService');
-const trialConversionJob = require('./jobs/trialConversionJob');
 
 const app = express();
 
@@ -190,11 +188,8 @@ const server = app.listen(PORT, () => {
     console.error('⚠️  PaymentService initialization failed, but server will continue:', error.message);
   }
 
-  // Initialize cron jobs for subscription management
-  CronService.init();
-
-  // Start trial conversion job
-  trialConversionJob.start();
+  // Note: Subscription renewals and billing are handled automatically by Razorpay
+  console.log('💳 Subscription management handled by Razorpay webhooks');
 });
 
 // Handle unhandled promise rejections

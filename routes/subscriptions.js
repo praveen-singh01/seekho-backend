@@ -12,7 +12,7 @@ const {
   checkTrialEligibility,
   createTrialWithMandate
 } = require('../controllers/subscriptionController');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 const { validateSubscription, validatePagination } = require('../middleware/validation');
 const Subscription = require('../models/Subscription');
 const PaymentService = require('../services/paymentService');
@@ -21,8 +21,8 @@ const router = express.Router();
 
 // @route   GET /api/subscriptions/plans
 // @desc    Get subscription plans
-// @access  Public
-router.get('/plans', getPlans);
+// @access  Public (but returns different data if authenticated)
+router.get('/plans', optionalAuth, getPlans);
 
 // @route   POST /api/subscriptions/create-order
 // @desc    Create subscription order
