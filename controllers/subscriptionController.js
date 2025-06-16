@@ -8,11 +8,37 @@ const PaymentService = require('../services/paymentService');
 // @access  Public
 const getPlans = async (req, res) => {
   try {
-    const plans = PaymentService.getSubscriptionPlans();
+    const { detailed = false } = req.query;
+
+    let plans;
+
+    if (detailed === 'true') {
+      // Get plans with actual Razorpay plan details
+      const result = await PaymentService.getSubscriptionPlansWithDetails();
+      plans = result.plans;
+
+      if (!result.success) {
+        console.warn('Failed to fetch detailed plans, using basic plans:', result.error);
+      }
+    } else {
+      // Get basic plans with environment variable values
+      plans = PaymentService.getSubscriptionPlans();
+    }
 
     res.status(200).json({
       success: true,
-      data: plans
+      data: plans,
+      meta: {
+        planIds: {
+          monthly: process.env.RAZORPAY_MONTHLY_PLAN_ID,
+          yearly: process.env.RAZORPAY_YEARLY_PLAN_ID
+        },
+        pricing: {
+          trial: `₹${parseInt(process.env.TRIAL_PRICE || 100) / 100}`,
+          monthly: `₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}`,
+          yearly: `₹${parseInt(process.env.YEARLY_PRICE || 49900) / 100}`
+        }
+      }
     });
   } catch (error) {
     console.error('Get plans error:', error);

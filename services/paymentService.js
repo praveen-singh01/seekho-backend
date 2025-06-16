@@ -8,6 +8,17 @@ const razorpay = new Razorpay({
 });
 
 class PaymentService {
+  // Initialize and validate configuration
+  static initialize() {
+    try {
+      this.validatePlanConfiguration();
+      console.log('✅ PaymentService initialized with predefined plan IDs');
+    } catch (error) {
+      console.error('❌ PaymentService initialization failed:', error.message);
+      throw error;
+    }
+  }
+
   // Create Razorpay order
   static async createRazorpayOrder(amount, currency = 'INR', receipt = null) {
     try {
@@ -136,41 +147,100 @@ class PaymentService {
     };
   }
 
-  // Get subscription plans
+  // Get subscription plans with actual Razorpay plan IDs
   static getSubscriptionPlans() {
+    // Get predefined plan IDs from environment variables
+    const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
+    const yearlyPlanId = process.env.RAZORPAY_YEARLY_PLAN_ID;
+
     return {
       trial: {
         name: 'Trial',
         duration: '5 days',
-        price: 1,
+        price: parseInt(process.env.TRIAL_PRICE || 100) / 100, // Convert paise to rupees
+        priceInPaise: parseInt(process.env.TRIAL_PRICE || 100),
         currency: 'INR',
         features: ['Access to all videos', 'HD quality', 'Mobile & web access'],
         billingCycle: 'one-time',
-        description: 'Try 5 days for ₹1, then ₹117/month'
+        description: `Try ${process.env.TRIAL_DURATION_DAYS || 5} days for ₹${parseInt(process.env.TRIAL_PRICE || 100) / 100}, then ₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}/month`,
+        planId: null, // Trial doesn't use Razorpay plan ID
+        durationDays: parseInt(process.env.TRIAL_DURATION_DAYS || 5)
       },
       monthly: {
         name: 'Monthly Subscription',
         duration: '30 days',
-        price: 117,
-        basePrice: 99,
+        price: parseInt(process.env.MONTHLY_PRICE || 11700) / 100, // Convert paise to rupees
+        priceInPaise: parseInt(process.env.MONTHLY_PRICE || 11700),
+        basePrice: parseInt(process.env.MONTHLY_BASE_PRICE || 9900) / 100, // ₹99 base price
         gst: 18,
         currency: 'INR',
         features: ['Access to all videos', 'HD quality', 'Mobile & web access', 'Download for offline viewing', 'Auto-renewal'],
         billingCycle: 'monthly',
         autoRenew: true,
-        description: '₹99 + 18% GST = ₹117/month'
+        description: `₹${parseInt(process.env.MONTHLY_BASE_PRICE || 9900) / 100} + 18% GST = ₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}/month`,
+        planId: monthlyPlanId, // Actual Razorpay plan ID
+        razorpayPlanId: monthlyPlanId,
+        durationDays: 30
       },
       yearly: {
         name: 'Yearly Subscription',
         duration: '365 days',
-        price: 499,
+        price: parseInt(process.env.YEARLY_PRICE || 49900) / 100, // Convert paise to rupees
+        priceInPaise: parseInt(process.env.YEARLY_PRICE || 49900),
         currency: 'INR',
         features: ['Access to all videos', 'HD quality', 'Mobile & web access', 'Download for offline viewing', 'Priority support', 'Auto-renewal'],
         billingCycle: 'yearly',
         autoRenew: true,
-        savings: 'Save ₹689 compared to monthly'
+        savings: `Save ₹${((parseInt(process.env.MONTHLY_PRICE || 11700) * 12) - parseInt(process.env.YEARLY_PRICE || 49900)) / 100} compared to monthly`,
+        planId: yearlyPlanId, // Actual Razorpay plan ID
+        razorpayPlanId: yearlyPlanId,
+        durationDays: 365
       }
     };
+  }
+
+  // Get subscription plans with Razorpay plan details (async version)
+  static async getSubscriptionPlansWithDetails() {
+    try {
+      const plans = this.getSubscriptionPlans();
+
+      // Fetch actual plan details from Razorpay for monthly and yearly plans
+      const planDetails = {};
+
+      for (const [planType, planInfo] of Object.entries(plans)) {
+        planDetails[planType] = { ...planInfo };
+
+        // Fetch Razorpay plan details if plan ID exists
+        if (planInfo.razorpayPlanId) {
+          try {
+            const razorpayPlan = await razorpay.plans.fetch(planInfo.razorpayPlanId);
+            planDetails[planType].razorpayDetails = {
+              id: razorpayPlan.id,
+              period: razorpayPlan.period,
+              interval: razorpayPlan.interval,
+              item: razorpayPlan.item,
+              status: razorpayPlan.status,
+              created_at: razorpayPlan.created_at
+            };
+          } catch (error) {
+            console.warn(`Failed to fetch Razorpay plan details for ${planType}:`, error.message);
+            planDetails[planType].razorpayDetails = null;
+          }
+        }
+      }
+
+      return {
+        success: true,
+        plans: planDetails
+      };
+    } catch (error) {
+      console.error('Error fetching subscription plans with details:', error);
+      return {
+        success: false,
+        error: error.message,
+        plans: this.getSubscriptionPlans() // Fallback to basic plans
+      };
+    }
   }
 
   // Create subscription order
@@ -204,31 +274,41 @@ class PaymentService {
     }
   }
 
-  // Create Razorpay subscription plan
-  static async createRazorpayPlan(planId, amount, interval, intervalCount = 1) {
-    try {
-      const planData = {
-        period: interval, // 'daily', 'weekly', 'monthly', 'yearly'
-        interval: intervalCount,
-        item: {
-          name: `Seekho ${interval} Plan`,
-          amount: amount, // amount in paise
-          currency: 'INR'
-        }
-      };
-
-      const plan = await razorpay.plans.create(planData);
-      return {
-        success: true,
-        plan
-      };
-    } catch (error) {
-      console.error('Razorpay plan creation error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+  // Get predefined Razorpay plan ID from environment variables
+  static getPredefinedPlanId(plan) {
+    switch (plan) {
+      case 'monthly':
+        return process.env.RAZORPAY_MONTHLY_PLAN_ID;
+      case 'yearly':
+        return process.env.RAZORPAY_YEARLY_PLAN_ID;
+      default:
+        throw new Error(`No predefined plan ID found for plan: ${plan}`);
     }
+  }
+
+  // Validate that required plan IDs are configured
+  static validatePlanConfiguration() {
+    const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
+    const yearlyPlanId = process.env.RAZORPAY_YEARLY_PLAN_ID;
+
+    if (!monthlyPlanId) {
+      throw new Error('RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables');
+    }
+    if (!yearlyPlanId) {
+      throw new Error('RAZORPAY_YEARLY_PLAN_ID is not configured in environment variables');
+    }
+
+    return {
+      monthly: monthlyPlanId,
+      yearly: yearlyPlanId
+    };
+  }
+
+  // DEPRECATED: Use getPredefinedPlanId instead
+  // This method should not be used as it creates plans programmatically
+  static async createRazorpayPlan(planId, amount, interval, intervalCount = 1) {
+    console.warn('⚠️  DEPRECATED: createRazorpayPlan method should not be used. Use predefined plan IDs instead.');
+    throw new Error('Plan creation is disabled. Use predefined plan IDs from Razorpay Dashboard instead.');
   }
 
   // Create Razorpay customer
@@ -305,33 +385,32 @@ class PaymentService {
     }
   }
 
-  // Create special trial-to-monthly plan for UPI mandate
+  // DEPRECATED: Use predefined monthly plan ID instead
   static async createTrialToMonthlyPlan() {
-    try {
-      const planData = {
-        period: 'monthly',
-        interval: 1,
-        item: {
-          name: 'Seekho Trial to Monthly Plan',
-          amount: 11700, // ₹117 in paise (monthly amount after trial)
-          currency: 'INR',
-          description: 'Trial ₹1 for 5 days, then ₹117/month'
-        }
-      };
+    console.warn('⚠️  DEPRECATED: createTrialToMonthlyPlan method should not be used. Use predefined monthly plan ID instead.');
 
-      const plan = await razorpay.plans.create(planData);
+    // Return the predefined monthly plan ID instead of creating a new plan
+    const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
 
-      return {
-        success: true,
-        plan
-      };
-    } catch (error) {
-      console.error('Trial-to-monthly plan creation error:', error);
+    if (!monthlyPlanId) {
       return {
         success: false,
-        error: error.message
+        error: 'RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables'
       };
     }
+
+    return {
+      success: true,
+      plan: {
+        id: monthlyPlanId,
+        // Note: This is a compatibility response. The actual plan details are in Razorpay Dashboard
+        item: {
+          name: 'Seekho Monthly Plan',
+          amount: 11700,
+          currency: 'INR'
+        }
+      }
+    };
   }
 
   // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
@@ -343,22 +422,17 @@ class PaymentService {
         throw new Error(`Customer creation failed: ${customerResult.error}`);
       }
 
-      // Create monthly plan (₹117/month) for auto-recurring
-      const planId = `trial_monthly_${Date.now()}`;
-      const monthlyPlanResult = await this.createRazorpayPlan(
-        planId,
-        11700, // ₹117 in paise (monthly amount after trial)
-        'monthly'
-      );
+      // Use predefined monthly plan ID instead of creating a new plan
+      const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
 
-      if (!monthlyPlanResult.success) {
-        throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
+      if (!monthlyPlanId) {
+        throw new Error('RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables');
       }
 
-      // Create Razorpay subscription without trial parameters
+      // Create Razorpay subscription using predefined plan
       // We'll handle the trial logic in our application
       const subscriptionResult = await this.createRazorpaySubscription(
-        monthlyPlanResult.plan.id,
+        monthlyPlanId, // Use predefined plan ID
         customerResult.customer.id,
         120 // 120 cycles (10 years)
         // No trial options - we'll handle trial in our app logic
@@ -371,7 +445,14 @@ class PaymentService {
       return {
         success: true,
         subscription: subscriptionResult.subscription,
-        plan: monthlyPlanResult.plan,
+        plan: {
+          id: monthlyPlanId,
+          item: {
+            name: 'Seekho Monthly Plan',
+            amount: 11700,
+            currency: 'INR'
+          }
+        },
         customer: customerResult.customer,
         trialAmount: 100, // ₹1
         monthlyAmount: 11700, // ₹117

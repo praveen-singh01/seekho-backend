@@ -59,19 +59,24 @@ class SubscriptionService {
         throw new Error(`Customer creation failed: ${customerResult.error}`);
       }
 
-      // Create Razorpay plan
-      const interval = plan === 'monthly' ? 'monthly' : 'yearly';
+      // Use pre-created plan from Razorpay Dashboard
+      let razorpayPlanId;
+      if (plan === 'monthly') {
+        razorpayPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
+      } else if (plan === 'yearly') {
+        razorpayPlanId = process.env.RAZORPAY_YEARLY_PLAN_ID;
+      } else {
+        throw new Error(`Invalid plan: ${plan}`);
+      }
 
-      const planResult = await PaymentService.createRazorpayPlan(null, amount, interval);
-
-      if (!planResult.success) {
-        throw new Error(`Plan creation failed: ${planResult.error}`);
+      if (!razorpayPlanId) {
+        throw new Error(`Plan ID not configured for ${plan} plan`);
       }
 
       // Create Razorpay subscription with appropriate total_count
       const totalCount = plan === 'yearly' ? 50 : 120; // 50 years for yearly, 120 months for monthly
       const subscriptionResult = await PaymentService.createRazorpaySubscription(
-        planResult.plan.id,
+        razorpayPlanId,
         customerResult.customer.id,
         totalCount
       );
@@ -100,7 +105,7 @@ class SubscriptionService {
         paymentId: subscriptionResult.subscription.id,
         orderId: subscriptionResult.subscription.id,
         razorpaySubscriptionId: subscriptionResult.subscription.id,
-        razorpayPlanId: planResult.plan.id,
+        razorpayPlanId: razorpayPlanId,
         razorpayCustomerId: customerResult.customer.id,
         subscriptionType: 'recurring',
         isRecurring: true,
@@ -708,21 +713,17 @@ class SubscriptionService {
         throw new Error(`Customer creation failed: ${customerResult.error}`);
       }
 
-      // Create monthly plan (₹117/month) - this will be the mandate amount
-      const monthlyPlanResult = await PaymentService.createRazorpayPlan(
-        `monthly_plan_${Date.now()}`,
-        11700, // ₹117 in paise
-        'monthly'
-      );
+      // Use pre-created monthly plan from Razorpay Dashboard
+      const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
 
-      if (!monthlyPlanResult.success) {
-        throw new Error(`Monthly plan creation failed: ${monthlyPlanResult.error}`);
+      if (!monthlyPlanId) {
+        throw new Error('RAZORPAY_MONTHLY_PLAN_ID not configured in environment variables');
       }
 
       // Create Razorpay subscription with trial addon approach
       // Immediate charge: ₹1 via addon, Main billing: ₹117 starts after 5 days
       const subscriptionData = {
-        plan_id: monthlyPlanResult.plan.id,
+        plan_id: monthlyPlanId,
         customer_id: customerResult.customer.id,
         quantity: 1,
         total_count: 120,
@@ -774,7 +775,7 @@ class SubscriptionService {
         paymentId: subscriptionResult.subscription.id,
         orderId: subscriptionResult.subscription.id,
         razorpaySubscriptionId: subscriptionResult.subscription.id,
-        razorpayPlanId: monthlyPlanResult.plan.id,
+        razorpayPlanId: monthlyPlanId,
         razorpayCustomerId: customerResult.customer.id,
         subscriptionType: 'recurring',
         isRecurring: true,

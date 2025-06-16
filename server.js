@@ -36,6 +36,7 @@ const notFound = require('./middleware/notFound');
 
 // Import services
 const CronService = require('./services/cronService');
+const PaymentService = require('./services/paymentService');
 const trialConversionJob = require('./jobs/trialConversionJob');
 
 const app = express();
@@ -181,6 +182,13 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+  // Initialize PaymentService with predefined plan validation
+  try {
+    PaymentService.initialize();
+  } catch (error) {
+    console.error('⚠️  PaymentService initialization failed, but server will continue:', error.message);
+  }
 
   // Initialize cron jobs for subscription management
   CronService.init();
