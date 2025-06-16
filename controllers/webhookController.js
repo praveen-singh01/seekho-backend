@@ -56,8 +56,8 @@ const checkIfShouldIgnoreWebhook = (payload) => {
     }
 
     // Check for specific amounts that don't match our plans
-    // Our plans: ₹1 (100 paise), ₹117 (11700 paise), ₹499 (49900 paise)
-    const validAmounts = [100, 11700, 49900];
+    // Our plans: ₹1 (100 paise), ₹117 (11700 paise), ₹587 (58700 paise)
+    const validAmounts = [100, 11700, 58700]; // Updated to include ₹587 for yearly
     if (payment.amount && !validAmounts.includes(payment.amount)) {
       return {
         ignore: true,
