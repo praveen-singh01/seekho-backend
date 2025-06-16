@@ -163,7 +163,7 @@ class PaymentService {
         features: ['Access to all videos', 'HD quality', 'Mobile & web access'],
         billingCycle: 'one-time',
         description: `Try ${process.env.TRIAL_DURATION_DAYS || 5} days for ₹${parseInt(process.env.TRIAL_PRICE || 100) / 100}, then ₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}/month`,
-        planId: null, // Trial doesn't use Razorpay plan ID
+        razorpayPlanId: null, // Trial doesn't use Razorpay plan ID - handled as one-time payment
         durationDays: parseInt(process.env.TRIAL_DURATION_DAYS || 5)
       },
       monthly: {
@@ -178,8 +178,7 @@ class PaymentService {
         billingCycle: 'monthly',
         autoRenew: true,
         description: `₹${parseInt(process.env.MONTHLY_BASE_PRICE || 9900) / 100} + 18% GST = ₹${parseInt(process.env.MONTHLY_PRICE || 11700) / 100}/month`,
-        planId: monthlyPlanId, // Actual Razorpay plan ID
-        razorpayPlanId: monthlyPlanId,
+        razorpayPlanId: monthlyPlanId, // Actual Razorpay plan ID from .env
         durationDays: 30
       },
       yearly: {
@@ -192,8 +191,7 @@ class PaymentService {
         billingCycle: 'yearly',
         autoRenew: true,
         savings: `Save ₹${((parseInt(process.env.MONTHLY_PRICE || 11700) * 12) - parseInt(process.env.YEARLY_PRICE || 49900)) / 100} compared to monthly`,
-        planId: yearlyPlanId, // Actual Razorpay plan ID
-        razorpayPlanId: yearlyPlanId,
+        razorpayPlanId: yearlyPlanId, // Actual Razorpay plan ID from .env
         durationDays: 365
       }
     };
@@ -214,7 +212,7 @@ class PaymentService {
         if (planInfo.razorpayPlanId) {
           try {
             const razorpayPlan = await razorpay.plans.fetch(planInfo.razorpayPlanId);
-            planDetails[planType].razorpayDetails = {
+            planDetails[planType].razorpayApiDetails = {
               id: razorpayPlan.id,
               period: razorpayPlan.period,
               interval: razorpayPlan.interval,
@@ -224,7 +222,7 @@ class PaymentService {
             };
           } catch (error) {
             console.warn(`Failed to fetch Razorpay plan details for ${planType}:`, error.message);
-            planDetails[planType].razorpayDetails = null;
+            planDetails[planType].razorpayApiDetails = null;
           }
         }
       }
