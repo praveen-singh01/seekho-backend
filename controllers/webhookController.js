@@ -1,6 +1,43 @@
 const crypto = require('crypto');
 const SubscriptionService = require('../services/subscriptionService');
 
+// Helper function to check if webhook should be ignored
+const checkIfShouldIgnoreWebhook = (payload) => {
+  // Check for Suvichar app webhooks
+  if (payload && payload.subscription && payload.subscription.entity && payload.subscription.entity.notes) {
+    const notes = payload.subscription.entity.notes;
+
+    // Check if this webhook is from Suvichar app
+    if (notes.AppName && (notes.AppName === 'SUVICHAR' || notes.AppName === 'suvichar')) {
+      return {
+        ignore: true,
+        reason: `Different app: ${notes.AppName}`
+      };
+    }
+
+    // Check package name for Suvichar
+    if (notes.packageName && notes.packageName.includes('suvichar')) {
+      return {
+        ignore: true,
+        reason: `Different package: ${notes.packageName}`
+      };
+    }
+
+    // Check for other non-Seekho packages
+    if (notes.packageName &&
+        !notes.packageName.includes('seekho') &&
+        !notes.packageName.includes('learning') &&
+        !notes.packageName.includes('gumbo')) {
+      return {
+        ignore: true,
+        reason: `Unknown package: ${notes.packageName}`
+      };
+    }
+  }
+
+  return { ignore: false };
+};
+
 // @desc    Handle Razorpay webhooks
 // @route   POST /api/webhooks/razorpay
 // @access  Public (but verified)
@@ -24,29 +61,33 @@ const handleRazorpayWebhook = async (req, res) => {
 
     const { event, payload } = req.body;
 
-    console.log(`Received Razorpay webhook: ${event}`);
+    console.log(`\n🔔 Received Razorpay webhook: ${event}`);
 
-    // Filter webhooks by app - only process webhooks for our app
-    if (payload && payload.subscription && payload.subscription.entity && payload.subscription.entity.notes) {
-      const notes = payload.subscription.entity.notes;
+    // Log webhook details for debugging
+    if (payload && payload.subscription && payload.subscription.entity) {
+      const subscription = payload.subscription.entity;
+      console.log(`📋 Subscription ID: ${subscription.id}`);
 
-      // Check if this webhook is from a different app
-      if (notes.AppName && notes.AppName !== 'SEEKHO' && notes.AppName !== 'seekho') {
-        console.log(`Ignoring webhook from different app: ${notes.AppName}`);
-        return res.status(200).json({
-          success: true,
-          message: `Webhook ignored - different app: ${notes.AppName}`
-        });
-      }
-
-      if (notes.packageName && !notes.packageName.includes('seekho') && !notes.packageName.includes('learning')) {
-        console.log(`Ignoring webhook from different package: ${notes.packageName}`);
-        return res.status(200).json({
-          success: true,
-          message: `Webhook ignored - different package: ${notes.packageName}`
+      if (subscription.notes) {
+        console.log(`📝 Notes:`, {
+          AppName: subscription.notes.AppName,
+          packageName: subscription.notes.packageName,
+          userId: subscription.notes.userId
         });
       }
     }
+
+    // Filter webhooks by app - only process webhooks for our app
+    const shouldIgnoreWebhook = checkIfShouldIgnoreWebhook(payload);
+    if (shouldIgnoreWebhook.ignore) {
+      console.log(`🚫 Ignoring webhook: ${shouldIgnoreWebhook.reason}`);
+      return res.status(200).json({
+        success: true,
+        message: `Webhook ignored: ${shouldIgnoreWebhook.reason}`
+      });
+    }
+
+    console.log(`✅ Processing webhook for Seekho app`);
 
     // Process the webhook event
     const result = await SubscriptionService.handleWebhook(event, payload);
