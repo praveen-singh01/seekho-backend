@@ -536,20 +536,18 @@ class SubscriptionService {
         return { success: false, error: `Subscription not found: ${subscriptionId}` };
       }
 
-      // Check if this is a trial conversion (first auto-billing after trial)
-      if (subscription.isTrialSubscription && subscription.plan === 'trial') {
-        // Convert trial to monthly subscription
-        await this.convertTrialToMonthlyWebhook(subscription, paymentData);
-        return {
-          success: true,
-          message: `Trial converted to monthly: ${subscriptionId}`
-        };
-      } else {
-        // Regular subscription renewal
+      // Handle subscription renewal (trials are one-time payments, so this should only be for recurring subscriptions)
+      if (subscription.isRecurring) {
         await this.renewSubscriptionWebhook(subscription, paymentData);
         return {
           success: true,
           message: `Subscription renewed: ${subscriptionId}`
+        };
+      } else {
+        console.log(`Non-recurring subscription charged: ${subscriptionId}`);
+        return {
+          success: true,
+          message: `One-time subscription payment processed: ${subscriptionId}`
         };
       }
     } catch (error) {
@@ -688,92 +686,20 @@ class SubscriptionService {
     }
   }
 
-  // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
-  static async createAutoRecurringTrialSubscription(userId, customerData) {
+  // Activate trial subscription after payment
+  static async activateTrialSubscription(userId, paymentData) {
     try {
-      // Create auto-recurring trial subscription via PaymentService
-      const result = await PaymentService.createAutoRecurringTrialSubscription(userId, customerData);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      // Calculate dates
-      const startDate = new Date();
-      const trialEndDate = new Date();
-      trialEndDate.setDate(startDate.getDate() + 5); // 5 days trial
-
-      // Next billing date is 5 days from start (when trial ends)
-      const nextBillingDate = new Date(trialEndDate);
-
-      // Create subscription record in database
-      const subscription = await Subscription.create({
-        user: userId,
-        plan: 'trial', // This will auto-convert to monthly
-        status: 'active', // Active immediately after payment
-        startDate,
-        endDate: trialEndDate, // Trial ends after 5 days
-        amount: 100, // Trial amount (₹1)
-        currency: 'INR',
-        paymentProvider: 'razorpay',
-        paymentId: result.subscription.id,
-        orderId: result.subscription.id,
-        razorpaySubscriptionId: result.subscription.id,
-        razorpayPlanId: result.plan.id,
-        razorpayCustomerId: result.customer.id,
-        subscriptionType: 'recurring',
-        isRecurring: true,
-        autoRenew: true,
-        nextBillingDate,
-        // Trial-specific fields
-        isTrialSubscription: true,
-        originalTrialEndDate: trialEndDate,
-        trialWithMandate: false, // This is auto-recurring, not mandate-based
-        metadata: {
-          customerEmail: customerData.email,
-          customerPhone: customerData.phone,
-          trialAmount: 100, // ₹1
-          monthlyAmount: 11700, // ₹117
-          trialPeriod: 5, // 5 days
-          autoRecurring: true
-        }
-      });
-
-      // Update user's subscription reference
-      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
-
-      return {
-        success: true,
-        subscription,
-        razorpaySubscription: result.subscription,
-        razorpayPlan: result.plan,
-        razorpayCustomer: result.customer,
-        trialAmount: result.trialAmount,
-        monthlyAmount: result.monthlyAmount,
-        trialPeriod: result.trialPeriod
-      };
-    } catch (error) {
-      console.error('Auto-recurring trial subscription creation error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  // Activate auto-recurring trial subscription after payment
-  static async activateAutoRecurringTrialSubscription(userId, paymentData) {
-    try {
-      // Find the subscription by Razorpay subscription ID
+      // Find the pending trial subscription
       const subscription = await Subscription.findOne({
         user: userId,
-        razorpaySubscriptionId: paymentData.subscriptionId,
+        orderId: paymentData.orderId,
         plan: 'trial',
+        status: 'pending',
         isTrialSubscription: true
       });
 
       if (!subscription) {
-        throw new Error('Auto-recurring trial subscription not found');
+        throw new Error('Pending trial subscription not found');
       }
 
       // Update subscription with payment details
@@ -789,7 +715,7 @@ class SubscriptionService {
         subscription
       };
     } catch (error) {
-      console.error('Auto-recurring trial activation error:', error);
+      console.error('Trial activation error:', error);
       return {
         success: false,
         error: error.message
@@ -797,54 +723,19 @@ class SubscriptionService {
     }
   }
 
-  // Create trial subscription with UPI mandate for auto-conversion
-  static async createTrialWithMandate(userId, customerData) {
+  // Create simple trial subscription (₹1 for 5 days, no auto-renewal)
+  static async createSimpleTrialSubscription(userId, customerData) {
     try {
-      // Create Razorpay customer
-      const customerResult = await PaymentService.createRazorpayCustomer(customerData);
-      if (!customerResult.success) {
-        throw new Error(`Customer creation failed: ${customerResult.error}`);
-      }
+      // For trial, create a simple one-time payment order
+      const trialAmount = parseInt(process.env.TRIAL_PRICE || 100); // ₹1 in paise
+      const orderResult = await PaymentService.createRazorpayOrder(
+        trialAmount,
+        'INR',
+        `trial_${userId}_${Date.now()}`
+      );
 
-      // Use pre-created monthly plan from Razorpay Dashboard
-      const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
-
-      if (!monthlyPlanId) {
-        throw new Error('RAZORPAY_MONTHLY_PLAN_ID not configured in environment variables');
-      }
-
-      // Create Razorpay subscription with trial addon approach
-      // Immediate charge: ₹1 via addon, Main billing: ₹117 starts after 5 days
-      const subscriptionData = {
-        plan_id: monthlyPlanId,
-        customer_id: customerResult.customer.id,
-        quantity: 1,
-        total_count: 120,
-        // Delay main subscription billing by 5 days
-        start_at: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60, // Start ₹117 billing after 5 days
-        // Add trial fee as addon (charged immediately)
-        addons: [
-          {
-            item: {
-              name: "Trial Fee",
-              amount: 100, // ₹1 in paise (charged immediately)
-              currency: "INR"
-            }
-          }
-        ],
-        // Add notes for tracking
-        notes: {
-          trial_amount: "100", // ₹1 in paise
-          trial_period: "5", // 5 days
-          plan_type: "trial_to_monthly",
-          package_name: "seekho"
-        }
-      };
-
-      const subscriptionResult = await PaymentService.createRazorpaySubscriptionWithAddons(subscriptionData);
-
-      if (!subscriptionResult.success) {
-        throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
+      if (!orderResult.success) {
+        throw new Error(`Order creation failed: ${orderResult.error}`);
       }
 
       // Calculate dates
@@ -852,39 +743,28 @@ class SubscriptionService {
       const trialEndDate = new Date();
       trialEndDate.setDate(startDate.getDate() + 5); // 5 days trial
 
-      // Next billing should be immediately after trial ends (5 days from start)
-      const nextBillingDate = new Date(trialEndDate);
-      // No additional days - billing happens right after trial expires
-
       const subscription = await Subscription.create({
         user: userId,
-        plan: 'trial', // This is a trial that will convert to monthly
-        status: 'pending',
+        plan: 'trial',
+        status: 'pending', // Will be activated after payment
         startDate,
-        endDate: trialEndDate, // Only 5 days access
-        amount: 100, // Trial amount (what user actually pays)
+        endDate: trialEndDate,
+        amount: trialAmount,
         currency: 'INR',
         paymentProvider: 'razorpay',
-        paymentId: subscriptionResult.subscription.id,
-        orderId: subscriptionResult.subscription.id,
-        razorpaySubscriptionId: subscriptionResult.subscription.id,
-        razorpayPlanId: monthlyPlanId,
-        razorpayCustomerId: customerResult.customer.id,
-        subscriptionType: 'recurring',
-        isRecurring: true,
-        autoRenew: true,
-        nextBillingDate, // Next billing after 5 days
+        orderId: orderResult.order.id,
+        subscriptionType: 'one-time',
+        isRecurring: false,
+        autoRenew: false,
         // Trial-specific fields
         isTrialSubscription: true,
         originalTrialEndDate: trialEndDate,
-        trialWithMandate: true, // Flag to indicate this trial has UPI mandate
+        trialWithMandate: false, // Simple trial, no mandate
         metadata: {
           customerEmail: customerData.email,
           customerPhone: customerData.phone,
-          trialAmount: 100, // What user pays initially
-          monthlyAmount: 11700, // What mandate is set up for
-          mandateAmount: 11700, // UPI mandate amount
-          accessDuration: 5 // Only 5 days of access
+          trialAmount: trialAmount,
+          accessDuration: 5 // 5 days of access
         }
       });
 
@@ -894,13 +774,11 @@ class SubscriptionService {
       return {
         success: true,
         subscription,
-        razorpaySubscription: subscriptionResult.subscription,
-        mandateSetup: true,
-        firstPaymentAmount: 100, // ₹1 (with discount)
-        mandateAmount: 11700 // ₹117 (UPI mandate amount)
+        order: orderResult.order,
+        paymentAmount: trialAmount
       };
     } catch (error) {
-      console.error('Trial with mandate creation error:', error);
+      console.error('Simple trial subscription creation error:', error);
       return {
         success: false,
         error: error.message
@@ -908,7 +786,7 @@ class SubscriptionService {
     }
   }
 
-  // Handle trial to monthly conversion
+  // Handle trial to monthly conversion (simplified)
   static async handleTrialConversion(subscriptionId) {
     try {
       const subscription = await Subscription.findById(subscriptionId).populate('user');
@@ -953,16 +831,25 @@ class SubscriptionService {
         throw new Error('Subscription not found');
       }
 
-      // Convert trial to monthly
-      await subscription.convertTrialToMonthly(
-        paymentData.paymentId,
-        paymentData.orderId,
-        paymentData.signature
+      // Convert trial to monthly (simplified - just create new monthly subscription)
+      const monthlyResult = await this.createOneTimeSubscription(
+        subscription.user._id,
+        'monthly',
+        paymentData
       );
+
+      if (!monthlyResult.success) {
+        throw new Error(`Failed to create monthly subscription: ${monthlyResult.error}`);
+      }
+
+      // Mark old trial as expired
+      subscription.status = 'expired';
+      subscription.cancelReason = 'Converted to monthly subscription';
+      await subscription.save();
 
       return {
         success: true,
-        subscription: subscription
+        subscription: monthlyResult.subscription
       };
     } catch (error) {
       console.error('Trial conversion completion error:', error);
@@ -973,94 +860,9 @@ class SubscriptionService {
     }
   }
 
-  // Process expired trials for automatic conversion
-  static async processExpiredTrials() {
-    try {
-      const expiredTrials = await Subscription.findTrialsForConversion();
-      const results = [];
-
-      for (const subscription of expiredTrials) {
-        try {
-          // Create automatic conversion order
-          const conversionResult = await this.handleTrialConversion(subscription._id);
-
-          if (conversionResult.success) {
-            // Here you would typically integrate with your payment processor
-            // to automatically charge the user's saved payment method
-            // For now, we'll mark the trial as expired and notify the user
-
-            subscription.status = 'expired';
-            subscription.cancelReason = 'Trial expired - conversion required';
-            await subscription.save();
-
-            results.push({
-              subscriptionId: subscription._id,
-              userId: subscription.user._id,
-              status: 'conversion_required',
-              orderId: conversionResult.order.id
-            });
-          }
-        } catch (error) {
-          console.error(`Failed to process trial ${subscription._id}:`, error);
-          results.push({
-            subscriptionId: subscription._id,
-            userId: subscription.user._id,
-            status: 'error',
-            error: error.message
-          });
-        }
-      }
-
-      return {
-        success: true,
-        processedTrials: results.length,
-        results: results
-      };
-    } catch (error) {
-      console.error('Process expired trials error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
 
 
-
-  // Convert trial subscription to monthly after auto-billing
-  static async convertTrialToMonthlyWebhook(subscription, payment) {
-    try {
-      // Update subscription to monthly
-      subscription.plan = 'monthly';
-      subscription.isTrialSubscription = false;
-      subscription.trialConvertedAt = new Date();
-      subscription.amount = 11700; // ₹117 in paise
-
-      // Extend subscription for 30 days from trial end date
-      const newEndDate = new Date(subscription.endDate);
-      newEndDate.setDate(newEndDate.getDate() + 30);
-      subscription.endDate = newEndDate;
-
-      // Set next billing date
-      const nextBilling = new Date(newEndDate);
-      nextBilling.setDate(nextBilling.getDate() + 30);
-      subscription.nextBillingDate = nextBilling;
-
-      // Update payment details
-      subscription.paymentId = payment.id;
-      subscription.lastSuccessfulPayment = new Date();
-      subscription.failedPaymentCount = 0;
-
-      await subscription.save();
-
-      console.log(`Trial converted to monthly: ${subscription._id}`);
-    } catch (error) {
-      console.error('Error converting trial to monthly:', error);
-      throw error;
-    }
-  }
-
-  // Renew existing subscription
+  // Renew existing subscription (simplified)
   static async renewSubscriptionWebhook(subscription, payment) {
     try {
       // Extend subscription period

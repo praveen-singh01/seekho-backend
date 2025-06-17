@@ -330,11 +330,11 @@ const verifyPayment = async (req, res) => {
       }
 
       if (plan === 'trial') {
-        // Handle auto-recurring trial subscription activation
-        subscriptionResult = await SubscriptionService.activateAutoRecurringTrialSubscription(
+        // Handle trial subscription activation
+        subscriptionResult = await SubscriptionService.activateTrialSubscription(
           req.user.id,
           {
-            subscriptionId: razorpay_subscription_id,
+            orderId: razorpay_order_id,
             paymentId: razorpay_payment_id,
             signature: razorpay_signature
           }
@@ -745,7 +745,7 @@ const createTrialWithMandate = async (req, res) => {
       phone: phone || user.phone
     };
 
-    const result = await SubscriptionService.createTrialWithMandate(req.user.id, customerData);
+    const result = await SubscriptionService.createSimpleTrialSubscription(req.user.id, customerData);
 
     if (!result.success) {
       return res.status(400).json({
@@ -759,17 +759,17 @@ const createTrialWithMandate = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Trial subscription with UPI mandate created successfully',
+      message: 'Trial subscription created successfully',
       data: {
         subscriptionId: result.subscription._id,
-        razorpaySubscriptionId: result.razorpaySubscription.id,
-        shortUrl: result.razorpaySubscription.short_url,
-        mandateSetup: result.mandateSetup,
-        firstPaymentAmount: result.firstPaymentAmount, // ₹1 in paise
-        mandateAmount: result.mandateAmount, // ₹117 in paise (UPI mandate)
+        orderId: result.order.id,
+        amount: result.order.amount,
+        currency: result.order.currency,
+        paymentAmount: result.paymentAmount, // ₹1 in paise
         trialPeriod: 5, // days
-        description: 'UPI mandate for ₹117/month, first payment ₹1 (trial)',
-        instructions: 'Complete the subscription setup to activate your trial'
+        description: '₹1 for 5 days trial access',
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+        instructions: 'Complete the payment to activate your trial'
       }
     });
   } catch (error) {

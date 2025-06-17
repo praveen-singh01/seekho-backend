@@ -411,58 +411,11 @@ class PaymentService {
     };
   }
 
-  // Create auto-recurring trial subscription (₹1 for 5 days, then ₹117/month)
+  // DEPRECATED: This method has been removed to simplify subscription flow
+  // Use simple one-time payment for trials instead of complex UPI mandate setup
   static async createAutoRecurringTrialSubscription(userId, customerData) {
-    try {
-      // Create Razorpay customer
-      const customerResult = await this.createRazorpayCustomer(customerData);
-      if (!customerResult.success) {
-        throw new Error(`Customer creation failed: ${customerResult.error}`);
-      }
-
-      // Use predefined monthly plan ID instead of creating a new plan
-      const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
-
-      if (!monthlyPlanId) {
-        throw new Error('RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables');
-      }
-
-      // Create Razorpay subscription using predefined plan
-      // We'll handle the trial logic in our application
-      const subscriptionResult = await this.createRazorpaySubscription(
-        monthlyPlanId, // Use predefined plan ID
-        customerResult.customer.id,
-        120 // 120 cycles (10 years)
-        // No trial options - we'll handle trial in our app logic
-      );
-
-      if (!subscriptionResult.success) {
-        throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
-      }
-
-      return {
-        success: true,
-        subscription: subscriptionResult.subscription,
-        plan: {
-          id: monthlyPlanId,
-          item: {
-            name: 'Seekho Monthly Plan',
-            amount: 11700,
-            currency: 'INR'
-          }
-        },
-        customer: customerResult.customer,
-        trialAmount: 100, // ₹1
-        monthlyAmount: 11700, // ₹117
-        trialPeriod: 5 // 5 days
-      };
-    } catch (error) {
-      console.error('Auto-recurring trial subscription creation error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
+    console.warn('⚠️  DEPRECATED: createAutoRecurringTrialSubscription method is deprecated. Use simple trial subscription instead.');
+    throw new Error('This method is deprecated. Use createSimpleTrialSubscription instead.');
   }
 
   // Cancel Razorpay subscription
