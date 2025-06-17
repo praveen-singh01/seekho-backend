@@ -28,6 +28,14 @@ const subscriptionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  trialWithAutoConversion: {
+    type: Boolean,
+    default: false
+  },
+  finalAmount: {
+    type: Number,
+    default: null // Amount after trial conversion
+  },
   status: {
     type: String,
     enum: ['active', 'cancelled', 'expired', 'pending'],

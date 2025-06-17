@@ -745,7 +745,7 @@ const createTrialWithMandate = async (req, res) => {
       phone: phone || user.phone
     };
 
-    const result = await SubscriptionService.createSimpleTrialSubscription(req.user.id, customerData);
+    const result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData);
 
     if (!result.success) {
       return res.status(400).json({
@@ -759,17 +759,28 @@ const createTrialWithMandate = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Trial subscription created successfully',
+      message: 'Auto-converting trial subscription created successfully',
       data: {
         subscriptionId: result.subscription._id,
-        orderId: result.order.id,
-        amount: result.order.amount,
-        currency: result.order.currency,
-        paymentAmount: result.paymentAmount, // ₹1 in paise
-        trialPeriod: 5, // days
-        description: '₹1 for 5 days trial access',
+        razorpaySubscriptionId: result.razorpaySubscription.id,
+        trialAmount: result.trialAmount, // ₹1 in paise
+        mainAmount: result.mainAmount, // ₹117 in paise
+        trialPeriod: result.trialPeriod, // 5 days
+        autoConversion: result.autoConversion,
+        mainBillingStartsAt: result.mainBillingStartsAt,
+        description: '₹1 for 5 days trial, then ₹117/month auto-billing',
         razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-        instructions: 'Complete the payment to activate your trial'
+        // For custom integration (recommended)
+        subscriptionDetails: {
+          customerId: result.subscription.razorpayCustomerId,
+          planId: result.subscription.razorpayPlanId,
+          totalCount: 120,
+          notes: {
+            packageName: "seekho",
+            trialPeriod: 5,
+            autoConvert: true
+          }
+        }
       }
     });
   } catch (error) {

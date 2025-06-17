@@ -1,0 +1,278 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-1234-1234-123456789012",
+		"name": "Seekho Subscription API",
+		"description": "Complete Postman collection for Seekho subscription APIs including plans, order creation, and payment verification",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to get JWT token for authenticated requests"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Subscription Plans",
+			"item": [
+				{
+					"name": "Get All Plans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}",
+								"description": "Optional - returns more details if authenticated"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/subscriptions/plans",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"plans"
+							]
+						},
+						"description": "Get all available subscription plans (trial, monthly, yearly) with pricing and features"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{BASE_URL}}/api/subscriptions/plans",
+									"host": [
+										"{{BASE_URL}}"
+									],
+									"path": [
+										"api",
+										"subscriptions",
+										"plans"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"trial\": {\n      \"name\": \"Trial\",\n      \"duration\": \"5 days\",\n      \"price\": 1,\n      \"priceInPaise\": 100,\n      \"currency\": \"INR\",\n      \"features\": [\"Access to all videos\", \"HD quality\", \"Mobile & web access\"],\n      \"billingCycle\": \"one-time\",\n      \"description\": \"Try 5 days for ₹1\"\n    },\n    \"monthly\": {\n      \"name\": \"Monthly Subscription\",\n      \"duration\": \"30 days\",\n      \"price\": 117,\n      \"priceInPaise\": 11700,\n      \"basePrice\": 99,\n      \"gst\": 18,\n      \"currency\": \"INR\",\n      \"features\": [\"Access to all videos\", \"HD quality\", \"Mobile & web access\", \"Download for offline viewing\", \"Auto-renewal\"],\n      \"billingCycle\": \"monthly\",\n      \"autoRenew\": true,\n      \"description\": \"₹99 + 18% GST = ₹117/month\"\n    },\n    \"yearly\": {\n      \"name\": \"Yearly Subscription\",\n      \"duration\": \"365 days\",\n      \"price\": 499,\n      \"priceInPaise\": 49900,\n      \"currency\": \"INR\",\n      \"features\": [\"Access to all videos\", \"HD quality\", \"Mobile & web access\", \"Download for offline viewing\", \"Priority support\", \"Auto-renewal\"],\n      \"billingCycle\": \"yearly\",\n      \"autoRenew\": true,\n      \"savings\": \"Save ₹905 compared to monthly\"\n    }\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Create Subscription Orders",
+			"item": [
+				{
+					"name": "Create Monthly Subscription Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plan\": \"monthly\",\n  \"subscriptionType\": \"recurring\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/subscriptions/create-order",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"create-order"
+							]
+						},
+						"description": "Create monthly subscription order (₹117/month with auto-renewal)"
+					},
+					"response": [
+						{
+							"name": "Monthly Order Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{JWT_TOKEN}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"plan\": \"monthly\",\n  \"subscriptionType\": \"recurring\"\n}"
+								},
+								"url": {
+									"raw": "{{BASE_URL}}/api/subscriptions/create-order",
+									"host": [
+										"{{BASE_URL}}"
+									],
+									"path": [
+										"api",
+										"subscriptions",
+										"create-order"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"orderId\": \"order_xyz123\",\n    \"amount\": 11700,\n    \"currency\": \"INR\",\n    \"plan\": \"monthly\",\n    \"razorpayKeyId\": \"rzp_test_xyz\",\n    \"type\": \"recurring\",\n    \"subscriptionDetails\": {\n      \"dbSubscriptionId\": \"64f1234567890abcdef12345\",\n      \"razorpaySubscriptionId\": \"sub_xyz123\",\n      \"customerId\": \"cust_xyz123\",\n      \"nextBillingDate\": \"2024-02-15T00:00:00.000Z\"\n    }\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Yearly Subscription Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plan\": \"yearly\",\n  \"subscriptionType\": \"recurring\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/subscriptions/create-order",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"create-order"
+							]
+						},
+						"description": "Create yearly subscription order (₹499/year with auto-renewal)"
+					},
+					"response": [
+						{
+							"name": "Yearly Order Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{JWT_TOKEN}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"plan\": \"yearly\",\n  \"subscriptionType\": \"recurring\"\n}"
+								},
+								"url": {
+									"raw": "{{BASE_URL}}/api/subscriptions/create-order",
+									"host": [
+										"{{BASE_URL}}"
+									],
+									"path": [
+										"api",
+										"subscriptions",
+										"create-order"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"orderId\": \"order_abc456\",\n    \"amount\": 49900,\n    \"currency\": \"INR\",\n    \"plan\": \"yearly\",\n    \"razorpayKeyId\": \"rzp_test_xyz\",\n    \"type\": \"recurring\",\n    \"subscriptionDetails\": {\n      \"dbSubscriptionId\": \"64f1234567890abcdef67890\",\n      \"razorpaySubscriptionId\": \"sub_abc456\",\n      \"customerId\": \"cust_abc456\",\n      \"nextBillingDate\": \"2025-01-15T00:00:00.000Z\"\n    }\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Trial Subscription Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"phone\": \"+919876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/subscriptions/create-trial-with-mandate",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"create-trial-with-mandate"
+							]
+						},
+						"description": "Create trial subscription order (₹1 for 5 days)"
+					},
+					"response": []
+				}
+			]
+		}

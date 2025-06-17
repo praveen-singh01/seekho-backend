@@ -536,8 +536,15 @@ class SubscriptionService {
         return { success: false, error: `Subscription not found: ${subscriptionId}` };
       }
 
-      // Handle subscription renewal (trials are one-time payments, so this should only be for recurring subscriptions)
-      if (subscription.isRecurring) {
+      // Check if this is a trial auto-conversion (first billing after trial)
+      if (subscription.isTrialSubscription && subscription.trialWithAutoConversion) {
+        await this.handleTrialAutoConversion(subscription, paymentData);
+        return {
+          success: true,
+          message: `Trial auto-converted to monthly: ${subscriptionId}`
+        };
+      } else if (subscription.isRecurring) {
+        // Regular subscription renewal
         await this.renewSubscriptionWebhook(subscription, paymentData);
         return {
           success: true,
@@ -723,19 +730,52 @@ class SubscriptionService {
     }
   }
 
-  // Create simple trial subscription (₹1 for 5 days, no auto-renewal)
-  static async createSimpleTrialSubscription(userId, customerData) {
+  // Create auto-converting trial subscription (₹1 trial + auto-convert to ₹117/month)
+  static async createAutoConvertingTrialSubscription(userId, customerData) {
     try {
-      // For trial, create a simple one-time payment order
-      const trialAmount = parseInt(process.env.TRIAL_PRICE || 100); // ₹1 in paise
-      const orderResult = await PaymentService.createRazorpayOrder(
-        trialAmount,
-        'INR',
-        `trial_${userId}_${Date.now()}`
-      );
+      // Create Razorpay customer first
+      const customerResult = await PaymentService.createRazorpayCustomer(customerData);
+      if (!customerResult.success) {
+        throw new Error(`Customer creation failed: ${customerResult.error}`);
+      }
 
-      if (!orderResult.success) {
-        throw new Error(`Order creation failed: ${orderResult.error}`);
+      // Use monthly plan ID from environment
+      const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
+      if (!monthlyPlanId) {
+        throw new Error('RAZORPAY_MONTHLY_PLAN_ID not configured in environment variables');
+      }
+
+      const trialAmount = parseInt(process.env.TRIAL_PRICE || 100); // ₹1 in paise
+      const monthlyAmount = parseInt(process.env.MONTHLY_PRICE || 11700); // ₹117 in paise
+
+      // Create subscription with trial addon + delayed main billing (like Java code)
+      const subscriptionData = {
+        plan_id: monthlyPlanId,
+        customer_id: customerResult.customer.id,
+        quantity: 1,
+        total_count: 120, // 10 years of monthly billing
+        start_at: Math.floor((Date.now() + (5 * 24 * 60 * 60 * 1000)) / 1000), // Start main billing after 5 days
+        addons: [{
+          item: {
+            name: "Trial Fee",
+            amount: trialAmount, // ₹1 charged immediately
+            currency: "INR"
+          }
+        }],
+        notes: {
+          packageName: "seekho",
+          trialPeriod: 5,
+          trialAmount: trialAmount,
+          mainAmount: monthlyAmount,
+          autoConvert: true,
+          userId: userId
+        }
+      };
+
+      const subscriptionResult = await PaymentService.createRazorpaySubscriptionWithAddons(subscriptionData);
+
+      if (!subscriptionResult.success) {
+        throw new Error(`Subscription creation failed: ${subscriptionResult.error}`);
       }
 
       // Calculate dates
@@ -743,28 +783,43 @@ class SubscriptionService {
       const trialEndDate = new Date();
       trialEndDate.setDate(startDate.getDate() + 5); // 5 days trial
 
+      // Main subscription starts after trial
+      const mainSubscriptionStartDate = new Date(trialEndDate);
+      const mainSubscriptionEndDate = new Date(mainSubscriptionStartDate);
+      mainSubscriptionEndDate.setDate(mainSubscriptionEndDate.getDate() + 30); // 30 days after trial
+
       const subscription = await Subscription.create({
         user: userId,
-        plan: 'trial',
+        plan: 'trial', // Will auto-convert to 'monthly'
         status: 'pending', // Will be activated after payment
         startDate,
-        endDate: trialEndDate,
-        amount: trialAmount,
+        endDate: trialEndDate, // Trial ends after 5 days
+        amount: trialAmount, // Initial trial amount
         currency: 'INR',
         paymentProvider: 'razorpay',
-        orderId: orderResult.order.id,
-        subscriptionType: 'one-time',
-        isRecurring: false,
-        autoRenew: false,
+        paymentId: subscriptionResult.subscription.id,
+        orderId: subscriptionResult.subscription.id,
+        razorpaySubscriptionId: subscriptionResult.subscription.id,
+        razorpayPlanId: monthlyPlanId,
+        razorpayCustomerId: customerResult.customer.id,
+        subscriptionType: 'recurring',
+        isRecurring: true,
+        autoRenew: true,
+        nextBillingDate: mainSubscriptionStartDate, // When main billing starts
         // Trial-specific fields
         isTrialSubscription: true,
         originalTrialEndDate: trialEndDate,
-        trialWithMandate: false, // Simple trial, no mandate
+        trialWithAutoConversion: true, // New flag for auto-conversion
+        finalAmount: monthlyAmount, // Amount after conversion
         metadata: {
           customerEmail: customerData.email,
           customerPhone: customerData.phone,
           trialAmount: trialAmount,
-          accessDuration: 5 // 5 days of access
+          mainAmount: monthlyAmount,
+          autoConvert: true,
+          trialPeriod: 5,
+          mainSubscriptionStartDate: mainSubscriptionStartDate,
+          mainSubscriptionEndDate: mainSubscriptionEndDate
         }
       });
 
@@ -774,11 +829,15 @@ class SubscriptionService {
       return {
         success: true,
         subscription,
-        order: orderResult.order,
-        paymentAmount: trialAmount
+        razorpaySubscription: subscriptionResult.subscription,
+        trialAmount: trialAmount,
+        mainAmount: monthlyAmount,
+        trialPeriod: 5,
+        autoConversion: true,
+        mainBillingStartsAt: mainSubscriptionStartDate
       };
     } catch (error) {
-      console.error('Simple trial subscription creation error:', error);
+      console.error('Auto-converting trial subscription creation error:', error);
       return {
         success: false,
         error: error.message
@@ -861,6 +920,47 @@ class SubscriptionService {
   }
 
 
+
+  // Handle trial auto-conversion to monthly subscription
+  static async handleTrialAutoConversion(subscription, payment) {
+    try {
+      console.log(`Processing trial auto-conversion for subscription: ${subscription._id}`);
+
+      // Convert trial to monthly subscription
+      subscription.plan = 'monthly';
+      subscription.isTrialSubscription = false;
+      subscription.trialConvertedAt = new Date();
+      subscription.amount = subscription.finalAmount || 11700; // ₹117 in paise
+      subscription.status = 'active';
+
+      // Set subscription period (30 days from conversion)
+      const conversionDate = new Date();
+      const endDate = new Date(conversionDate);
+      endDate.setDate(endDate.getDate() + 30); // 30 days from conversion
+      subscription.endDate = endDate;
+
+      // Set next billing date (30 days after this billing)
+      const nextBilling = new Date(endDate);
+      nextBilling.setDate(nextBilling.getDate() + 30);
+      subscription.nextBillingDate = nextBilling;
+
+      // Update payment details
+      subscription.paymentId = payment.id;
+      subscription.lastSuccessfulPayment = new Date();
+      subscription.failedPaymentCount = 0;
+
+      // Clear trial-specific flags
+      subscription.trialWithAutoConversion = false;
+
+      await subscription.save();
+
+      console.log(`Trial auto-converted to monthly subscription: ${subscription._id}`);
+      console.log(`New end date: ${endDate}, Next billing: ${nextBilling}`);
+    } catch (error) {
+      console.error('Error in trial auto-conversion:', error);
+      throw error;
+    }
+  }
 
   // Renew existing subscription (simplified)
   static async renewSubscriptionWebhook(subscription, payment) {
