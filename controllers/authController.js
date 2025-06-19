@@ -1,4 +1,5 @@
 const passport = require('passport');
+const bcrypt = require('bcryptjs');
 const { generateToken } = require('../middleware/auth');
 const User = require('../models/User');
 
@@ -63,7 +64,7 @@ const logout = async (req, res) => {
   try {
     // In a stateless JWT system, logout is handled on the client side
     // by removing the token. We can optionally blacklist the token here.
-    
+
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
@@ -83,7 +84,7 @@ const logout = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { name, preferences } = req.body;
-    
+
     const updateData = {};
     if (name) updateData.name = name;
     if (preferences) updateData.preferences = { ...req.user.preferences, ...preferences };
@@ -122,7 +123,7 @@ const deleteAccount = async (req, res) => {
     }
 
     // Soft delete - deactivate account
-    await User.findByIdAndUpdate(req.user.id, { 
+    await User.findByIdAndUpdate(req.user.id, {
       isActive: false,
       email: `deleted_${Date.now()}_${req.user.email}` // Prevent email conflicts
     });
@@ -175,6 +176,187 @@ const getUserStats = async (req, res) => {
   }
 };
 
+// @desc    Register user with email and password
+// @route   POST /api/auth/register
+// @access  Public
+const register = async (req, res) => {
+  try {
+    const { name, email, password, username } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and password are required'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email },
+        { username: username }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email/username already exists'
+      });
+    }
+
+    // Create new user
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      username: username,
+      password, // Will be hashed by pre-save middleware
+      role: 'user',
+      provider: 'local',
+      isVerified: true, // Set to true for now, can be changed later for email verification
+      isActive: true,
+      lastLogin: new Date()
+    });
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    // Remove password from response
+    user.password = undefined;
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: {
+        token,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          provider: user.provider,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Register error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed'
+    });
+  }
+};
+
+// @desc    Login user with email and password
+// @route   POST /api/auth/login
+// @access  Public
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // Find user by email and include password field
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      provider: 'local',
+      isActive: true
+    }).select('+password').populate('subscription');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await user.comparePassword(password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    // Remove password from response
+    user.password = undefined;
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          profilePicture: user.profilePicture,
+          role: user.role,
+          provider: user.provider,
+          isVerified: user.isVerified,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt
+        },
+        subscription: {
+          hasSubscription: !!user.subscription,
+          isActive: user.subscription ? user.subscription.isActive() : false,
+          plan: user.subscription?.plan,
+          endDate: user.subscription?.endDate
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+};
+
 module.exports = {
   googleAuth,
   googleCallback,
@@ -182,5 +364,7 @@ module.exports = {
   logout,
   updateProfile,
   deleteAccount,
-  getUserStats
+  getUserStats,
+  register,
+  login
 };

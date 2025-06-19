@@ -25,7 +25,7 @@ class PaymentService {
       const options = {
         amount: amount, // amount in paise
         currency: currency,
-        receipt: receipt || `receipt_${Date.now()}`,
+        receipt: receipt || `rcpt_${Date.now().toString().slice(-8)}`, // Keep under 40 chars
         payment_capture: 1
       };
 
@@ -245,7 +245,7 @@ class PaymentService {
   static async createSubscriptionOrder(userId, plan) {
     try {
       const { startDate, endDate, amount } = this.calculateSubscriptionDates(plan);
-      const receipt = `sub_${plan}_${Date.now().toString().slice(-8)}`;
+      const receipt = `sub_${plan}_${Date.now().toString().slice(-6)}`; // Keep under 40 chars
 
       const orderResult = await this.createRazorpayOrder(amount, 'INR', receipt);
 

@@ -6,12 +6,24 @@ const {
   logout,
   updateProfile,
   deleteAccount,
-  getUserStats
+  getUserStats,
+  register,
+  login
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validateUser } = require('../middleware/validation');
 
 const router = express.Router();
+
+// @route   POST /api/auth/register
+// @desc    Register user with email and password
+// @access  Public
+router.post('/register', register);
+
+// @route   POST /api/auth/login
+// @desc    Login user with email and password
+// @access  Public
+router.post('/login', login);
 
 /**
  * @swagger

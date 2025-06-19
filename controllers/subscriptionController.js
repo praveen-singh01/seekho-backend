@@ -184,7 +184,7 @@ const createOrder = async (req, res) => {
         phone: req.user.phone || ''
       };
 
-      result = await SubscriptionService.createTrialWithMandate(req.user.id, customerData);
+      result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData);
 
       if (!result.success) {
         return res.status(400).json({
@@ -199,21 +199,23 @@ const createOrder = async (req, res) => {
           // Standardized fields for frontend
           subscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID for payment
           orderId: null, // No order ID for subscription-based payments
-          amount: result.firstPaymentAmount, // ₹1 charged immediately via addon
-          mandateAmount: result.mandateAmount, // ₹117 UPI mandate for future billing
+          amount: result.trialAmount, // ₹1 charged immediately via addon
+          mandateAmount: result.mainAmount, // ₹117 UPI mandate for future billing
           currency: 'INR',
           plan: plan,
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'recurring-subscription', // Trial via subscription with mandate
+          type: 'auto-converting-trial', // Trial with auto-conversion
 
           // Additional details
           subscriptionDetails: {
             dbSubscriptionId: result.subscription._id, // Our database subscription ID
             razorpaySubscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID
             customerId: result.subscription.razorpayCustomerId,
-            trialPeriod: 5,
-            trialAmount: 100,
-            monthlyAmount: 11700,
+            trialPeriod: result.trialPeriod,
+            trialAmount: result.trialAmount,
+            monthlyAmount: result.mainAmount,
+            autoConversion: result.autoConversion,
+            mainBillingStartsAt: result.mainBillingStartsAt,
             nextBillingDate: result.subscription.nextBillingDate
           }
         }

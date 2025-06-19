@@ -4,49 +4,49 @@ const PaymentService = require('./paymentService');
 
 class SubscriptionService {
   // Create new subscription (one-time payment for trial)
-  static async createOneTimeSubscription(userId, plan, paymentData) {
-    try {
-      const { startDate, endDate, amount } = PaymentService.calculateSubscriptionDates(plan);
+  // static async createOneTimeSubscription(userId, plan, paymentData) {
+  //   try {
+  //     const { startDate, endDate, amount } = PaymentService.calculateSubscriptionDates(plan);
 
-      const subscription = await Subscription.create({
-        user: userId,
-        plan,
-        status: 'active',
-        startDate,
-        endDate,
-        amount,
-        currency: 'INR',
-        paymentProvider: 'razorpay',
-        paymentId: paymentData.paymentId,
-        orderId: paymentData.orderId,
-        signature: paymentData.signature,
-        subscriptionType: 'one-time',
-        isRecurring: false,
-        autoRenew: false,
-        // Trial-specific fields
-        isTrialSubscription: plan === 'trial',
-        originalTrialEndDate: plan === 'trial' ? endDate : null,
-        metadata: {
-          customerEmail: paymentData.email,
-          customerPhone: paymentData.phone
-        }
-      });
+  //     const subscription = await Subscription.create({
+  //       user: userId,
+  //       plan,
+  //       status: 'active',
+  //       startDate,
+  //       endDate,
+  //       amount,
+  //       currency: 'INR',
+  //       paymentProvider: 'razorpay',
+  //       paymentId: paymentData.paymentId,
+  //       orderId: paymentData.orderId,
+  //       signature: paymentData.signature,
+  //       subscriptionType: 'one-time',
+  //       isRecurring: false,
+  //       autoRenew: false,
+  //       // Trial-specific fields
+  //       isTrialSubscription: plan === 'trial',
+  //       originalTrialEndDate: plan === 'trial' ? endDate : null,
+  //       metadata: {
+  //         customerEmail: paymentData.email,
+  //         customerPhone: paymentData.phone
+  //       }
+  //     });
 
-      // Update user's subscription reference
-      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+  //     // Update user's subscription reference
+  //     await User.findByIdAndUpdate(userId, { subscription: subscription._id });
 
-      return {
-        success: true,
-        subscription
-      };
-    } catch (error) {
-      console.error('One-time subscription creation error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+  //     return {
+  //       success: true,
+  //       subscription
+  //     };
+  //   } catch (error) {
+  //     console.error('One-time subscription creation error:', error);
+  //     return {
+  //       success: false,
+  //       error: error.message
+  //     };
+  //   }
+  // }
 
   // Create recurring subscription with Razorpay
   static async createRecurringSubscription(userId, plan, customerData) {
@@ -135,51 +135,51 @@ class SubscriptionService {
   }
 
   // Activate pending recurring subscription after payment
-  static async activateRecurringSubscription(userId, razorpaySubscriptionId, paymentData) {
-    try {
-      const subscription = await Subscription.findOne({
-        user: userId,
-        razorpaySubscriptionId: razorpaySubscriptionId,
-        status: 'pending'
-      });
+  // static async activateRecurringSubscription(userId, razorpaySubscriptionId, paymentData) {
+  //   try {
+  //     const subscription = await Subscription.findOne({
+  //       user: userId,
+  //       razorpaySubscriptionId: razorpaySubscriptionId,
+  //       status: 'pending'
+  //     });
 
-      if (!subscription) {
-        return {
-          success: false,
-          error: 'Pending subscription not found'
-        };
-      }
+  //     if (!subscription) {
+  //       return {
+  //         success: false,
+  //         error: 'Pending subscription not found'
+  //       };
+  //     }
 
-      // Update subscription to active
-      subscription.status = 'active';
-      subscription.lastSuccessfulPayment = new Date();
-      if (paymentData.paymentId) {
-        subscription.paymentId = paymentData.paymentId;
-      }
-      if (paymentData.orderId) {
-        subscription.orderId = paymentData.orderId;
-      }
-      if (paymentData.signature) {
-        subscription.signature = paymentData.signature;
-      }
+  //     // Update subscription to active
+  //     subscription.status = 'active';
+  //     subscription.lastSuccessfulPayment = new Date();
+  //     if (paymentData.paymentId) {
+  //       subscription.paymentId = paymentData.paymentId;
+  //     }
+  //     if (paymentData.orderId) {
+  //       subscription.orderId = paymentData.orderId;
+  //     }
+  //     if (paymentData.signature) {
+  //       subscription.signature = paymentData.signature;
+  //     }
 
-      await subscription.save();
+  //     await subscription.save();
 
-      // Update user's subscription reference
-      await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+  //     // Update user's subscription reference
+  //     await User.findByIdAndUpdate(userId, { subscription: subscription._id });
 
-      return {
-        success: true,
-        subscription
-      };
-    } catch (error) {
-      console.error('Activate recurring subscription error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
+  //     return {
+  //       success: true,
+  //       subscription
+  //     };
+  //   } catch (error) {
+  //     console.error('Activate recurring subscription error:', error);
+  //     return {
+  //       success: false,
+  //       error: error.message
+  //     };
+  //   }
+  // }
 
   // Get user's active subscription
   static async getUserSubscription(userId) {
@@ -859,7 +859,7 @@ class SubscriptionService {
       const orderResult = await PaymentService.createRazorpayOrder(
         monthlyAmount,
         'INR',
-        `monthly_conversion_${Date.now()}`
+        `conv_${Date.now().toString().slice(-8)}` // Keep under 40 chars
       );
 
       if (!orderResult.success) {
