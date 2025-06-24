@@ -304,10 +304,10 @@ class PaymentService {
 
   // DEPRECATED: Use getPredefinedPlanId instead
   // This method should not be used as it creates plans programmatically
-  static async createRazorpayPlan(planId, amount, interval, intervalCount = 1) {
-    console.warn('⚠️  DEPRECATED: createRazorpayPlan method should not be used. Use predefined plan IDs instead.');
-    throw new Error('Plan creation is disabled. Use predefined plan IDs from Razorpay Dashboard instead.');
-  }
+  // static async createRazorpayPlan(planId, amount, interval, intervalCount = 1) {
+  //   console.warn('⚠️  DEPRECATED: createRazorpayPlan method should not be used. Use predefined plan IDs instead.');
+  //   throw new Error('Plan creation is disabled. Use predefined plan IDs from Razorpay Dashboard instead.');
+  // }
 
   // Create Razorpay customer
   static async createRazorpayCustomer(customerData) {
@@ -384,32 +384,32 @@ class PaymentService {
   }
 
   // DEPRECATED: Use predefined monthly plan ID instead
-  static async createTrialToMonthlyPlan() {
-    console.warn('⚠️  DEPRECATED: createTrialToMonthlyPlan method should not be used. Use predefined monthly plan ID instead.');
+  // static async createTrialToMonthlyPlan() {
+  //   console.warn('⚠️  DEPRECATED: createTrialToMonthlyPlan method should not be used. Use predefined monthly plan ID instead.');
 
-    // Return the predefined monthly plan ID instead of creating a new plan
-    const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
+  //   // Return the predefined monthly plan ID instead of creating a new plan
+  //   const monthlyPlanId = process.env.RAZORPAY_MONTHLY_PLAN_ID;
 
-    if (!monthlyPlanId) {
-      return {
-        success: false,
-        error: 'RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables'
-      };
-    }
+  //   if (!monthlyPlanId) {
+  //     return {
+  //       success: false,
+  //       error: 'RAZORPAY_MONTHLY_PLAN_ID is not configured in environment variables'
+  //     };
+  //   }
 
-    return {
-      success: true,
-      plan: {
-        id: monthlyPlanId,
-        // Note: This is a compatibility response. The actual plan details are in Razorpay Dashboard
-        item: {
-          name: 'Seekho Monthly Plan',
-          amount: 11700,
-          currency: 'INR'
-        }
-      }
-    };
-  }
+  //   return {
+  //     success: true,
+  //     plan: {
+  //       id: monthlyPlanId,
+  //       // Note: This is a compatibility response. The actual plan details are in Razorpay Dashboard
+  //       item: {
+  //         name: 'Seekho Monthly Plan',
+  //         amount: 11700,
+  //         currency: 'INR'
+  //       }
+  //     }
+  //   };
+  // }
 
   // DEPRECATED: This method has been removed to simplify subscription flow
   // Use simple one-time payment for trials instead of complex UPI mandate setup

@@ -115,7 +115,7 @@ const getPlans = async (req, res) => {
 // @access  Private
 const createOrder = async (req, res) => {
   try {
-    let { plan } = req.body;
+    let { plan, recurring } = req.body;
 
     // Map Razorpay plan IDs to plan types if needed
     const planMapping = {
@@ -133,6 +133,11 @@ const createOrder = async (req, res) => {
         success: false,
         message: 'Invalid subscription plan'
       });
+    }
+
+    // Default recurring to true if not specified (backward compatibility)
+    if (recurring === undefined) {
+      recurring = true;
     }
 
     // Get user for trial eligibility check
@@ -176,7 +181,38 @@ const createOrder = async (req, res) => {
 
     let result;
 
-    if (plan === 'trial') {
+    // Handle based on recurring parameter
+    if (!recurring) {
+      // Create one-time order (recurring: false)
+      result = await PaymentService.createSubscriptionOrder(req.user.id, plan);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.error
+        });
+      }
+
+      // Response for one-time order
+      res.status(200).json({
+        success: true,
+        data: {
+          orderId: result.order.id,
+          amount: result.order.amount,
+          currency: result.order.currency,
+          plan: plan,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          type: 'one-time-order',
+          receipt: result.order.receipt,
+
+          // Additional details
+          orderDetails: {
+            razorpayOrderId: result.order.id,
+            subscriptionDetails: result.subscriptionDetails
+          }
+        }
+      });
+    } else if (plan === 'trial') {
       // Create trial subscription with addon approach (₹1 immediate + ₹117 after 5 days)
       const customerData = {
         name: req.user.name,
@@ -221,7 +257,7 @@ const createOrder = async (req, res) => {
         }
       });
     } else {
-      // For monthly and yearly, create recurring subscription
+      // For monthly and yearly, create recurring subscription (recurring: true)
       const customerData = {
         name: req.user.name,
         email: req.user.email,
@@ -276,7 +312,8 @@ const verifyPayment = async (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       razorpay_subscription_id,
-      plan
+      plan,
+      recurring
     } = req.body;
 
     if (!plan) {
