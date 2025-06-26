@@ -1,0 +1,1438 @@
+{
+  "info": {
+    "name": "Seekho Backend - Complete API Collection",
+    "description": "Complete API collection for Seekho Backend with all endpoints including authentication, content management, subscriptions, admin, and more.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topic_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "video_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('jwt_token', response.data.token);",
+                  "        pm.collectionVariables.set('user_id', response.data.user._id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "google"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/account",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "account"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📱 Android Authentication",
+      "item": [
+        {
+          "name": "Android Google Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6...\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/android/google",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "android", "google"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('jwt_token', response.data.token);",
+                  "        pm.collectionVariables.set('user_id', response.data.user._id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/android/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "android", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Get Android Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/android/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "android", "config"]
+            }
+          }
+        },
+        {
+          "name": "Android Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/android/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "android", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Delete Android Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/android/account",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "android", "account"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Subscriptions",
+      "item": [
+        {
+          "name": "Get Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Create Subscription Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"monthly\",\n  \"recurring\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/create-order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "create-order"]
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_order_id\": \"order_xxx\",\n  \"razorpay_payment_id\": \"pay_xxx\",\n  \"razorpay_signature\": \"signature_xxx\",\n  \"plan\": \"monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/verify-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "verify-payment"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "status"]
+            }
+          }
+        },
+        {
+          "name": "Check Trial Eligibility",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/trial-eligibility",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "trial-eligibility"]
+            }
+          }
+        },
+        {
+          "name": "Create Trial with Mandate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/create-trial-with-mandate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "create-trial-with-mandate"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Not satisfied with service\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Reactivate Subscription",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/reactivate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "reactivate"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/history?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Convert Trial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"subscription_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/convert-trial",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "convert-trial"]
+            }
+          }
+        },
+        {
+          "name": "Complete Trial Conversion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"subscription_id_here\",\n  \"razorpay_order_id\": \"order_xxx\",\n  \"razorpay_payment_id\": \"pay_xxx\",\n  \"razorpay_signature\": \"signature_xxx\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/complete-conversion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "complete-conversion"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Razorpay Subscription",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions/cancel-razorpay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions", "cancel-razorpay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories?page=1&limit=10&sort=order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "order"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/topics?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}", "topics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Category Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Complete Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/updates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}", "updates"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📖 Topics",
+      "item": [
+        {
+          "name": "Get All Topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Topic",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Topic Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}/videos?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Related Topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}/related",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}", "related"]
+            }
+          }
+        },
+        {
+          "name": "Get Topic Progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}", "progress"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎥 Videos",
+      "item": [
+        {
+          "name": "Get All Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/search?q=javascript&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "javascript"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/popular",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "popular"]
+            }
+          }
+        },
+        {
+          "name": "Get New Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/new",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "new"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Video",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Stream URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}/stream",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}", "stream"]
+            }
+          }
+        },
+        {
+          "name": "Get Related Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}/related",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}", "related"]
+            }
+          }
+        },
+        {
+          "name": "Record Video View",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}/view",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}", "view"]
+            }
+          }
+        },
+        {
+          "name": "Record Video Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 75,\n  \"watchTime\": 300\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}", "progress"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}/recommendations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}", "recommendations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Users",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Watch History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/watch-history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "watch-history"]
+            }
+          }
+        },
+        {
+          "name": "Add to Favorites",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{video_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/favorites",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "favorites"]
+            }
+          }
+        },
+        {
+          "name": "Get Favorites",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/favorites",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "favorites"]
+            }
+          }
+        },
+        {
+          "name": "Remove from Favorites",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/favorites/{{video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "favorites", "{{video_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Add to Bookmarks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{video_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/bookmarks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "bookmarks"]
+            }
+          }
+        },
+        {
+          "name": "Get Bookmarks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/bookmarks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "bookmarks"]
+            }
+          }
+        },
+        {
+          "name": "Remove from Bookmarks",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/bookmarks/{{video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "bookmarks", "{{video_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Check Video Access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/me/videos/{{video_id}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "me", "videos", "{{video_id}}", "unlock"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notifications as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notificationIds\": [\"notification_id_1\", \"notification_id_2\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications/mark-read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "mark-read"]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "unread-count"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔗 Webhooks",
+      "item": [
+        {
+          "name": "Test Webhook",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "test"]
+            }
+          }
+        },
+        {
+          "name": "Debug Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/debug-subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "debug-subscriptions"]
+            }
+          }
+        },
+        {
+          "name": "Razorpay Webhook (Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-razorpay-signature",
+                "value": "test-signature"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"subscription.charged\",\n  \"payload\": {\n    \"subscription\": {\n      \"entity\": {\n        \"id\": \"sub_test123\",\n        \"status\": \"active\",\n        \"notes\": {\n          \"packageName\": \"com.gumbo.learning\",\n          \"AppName\": \"seekho\",\n          \"userId\": \"test-user-123\"\n        }\n      }\n    },\n    \"payment\": {\n      \"entity\": {\n        \"id\": \"pay_test123\",\n        \"order_id\": \"order_test123\",\n        \"amount\": 11700,\n        \"status\": \"captured\",\n        \"description\": \"Monthly subscription\",\n        \"email\": \"test@example.com\"\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/razorpay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "razorpay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Admin Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('admin_token', response.data.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current Admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "me"]
+            }
+          }
+        },
+        {
+          "name": "Create Admin User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Admin\",\n  \"email\": \"john.admin@seekho.com\",\n  \"password\": \"AdminPass@123\",\n  \"username\": \"johnadmin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "create"]
+            }
+          }
+        },
+        {
+          "name": "List Admin Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/list?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Admin User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/remove/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "remove", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Change Admin Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPassword@123\",\n  \"newPassword\": \"NewPassword@123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "change-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Admin Panel",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gaming\",\n  \"description\": \"Learn gaming strategies and techniques\",\n  \"color\": \"#FF6B6B\",\n  \"thumbnail\": \"https://s3.amazonaws.com/bucket/gaming.jpg\",\n  \"icon\": \"fas fa-gamepad\",\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Gaming\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Stats (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/subscriptions/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "subscriptions", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get All Subscriptions (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/subscriptions?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "subscriptions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Run Subscription Maintenance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/subscriptions/maintenance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "subscriptions", "maintenance"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

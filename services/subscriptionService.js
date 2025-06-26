@@ -763,11 +763,8 @@ class SubscriptionService {
           }
         }],
         notes: {
-          packageName: "seekho",
-          trialPeriod: 5,
-          trialAmount: trialAmount,
-          mainAmount: monthlyAmount,
-          autoConvert: true,
+          packageName: "com.gumbo.learning",
+          AppName: "seekho",
           userId: userId
         }
       };

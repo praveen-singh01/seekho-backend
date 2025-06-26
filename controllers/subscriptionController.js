@@ -815,9 +815,10 @@ const createTrialWithMandate = async (req, res) => {
           planId: result.subscription.razorpayPlanId,
           totalCount: 120,
           notes: {
-            packageName: "seekho",
-            trialPeriod: 5,
-            autoConvert: true
+            packageName: "com.gumbo.learning",
+            AppNAme: "seekho",
+            // trialPeriod: 5,
+            // autoConvert: true
           }
         }
       }
