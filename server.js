@@ -33,6 +33,7 @@ const webhookRoutes = require('./routes/webhooks');
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
+const { processPackageId, optionalPackageId } = require('./middleware/packageId');
 
 // Import services
 const PaymentService = require('./services/paymentService');
@@ -103,7 +104,8 @@ const corsOptions = {
     'Cache-Control',
     'X-Access-Token',
     'X-Key',
-    'X-Auth-Token'
+    'X-Auth-Token',
+    'X-Package-ID'
   ],
   exposedHeaders: [
     'X-RateLimit-Limit',
@@ -158,19 +160,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/auth/android', androidAuthRoutes);
-app.use('/api/auth/admin', adminAuthRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/topics', topicRoutes);
-app.use('/api/videos', videoRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/webhooks', webhookRoutes);
+// API routes with package ID middleware
+app.use('/api/auth', optionalPackageId, authRoutes);
+app.use('/api/auth/android', processPackageId, androidAuthRoutes);
+app.use('/api/auth/admin', optionalPackageId, adminAuthRoutes);
+app.use('/api/categories', optionalPackageId, categoryRoutes);
+app.use('/api/topics', optionalPackageId, topicRoutes);
+app.use('/api/videos', optionalPackageId, videoRoutes);
+app.use('/api/subscriptions', processPackageId, subscriptionRoutes);
+app.use('/api/admin', optionalPackageId, adminRoutes);
+app.use('/api/users', processPackageId, userRoutes);
+app.use('/api/upload', processPackageId, uploadRoutes);
+app.use('/api/notifications', processPackageId, notificationRoutes);
+app.use('/api/webhooks', optionalPackageId, webhookRoutes);
 
 // Error handling middleware
 app.use(notFound);

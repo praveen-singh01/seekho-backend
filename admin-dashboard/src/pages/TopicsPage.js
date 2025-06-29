@@ -42,8 +42,10 @@ import {
 import { adminService } from '../services/adminService';
 import { uploadService } from '../services/uploadService';
 import { format } from 'date-fns';
+import { useApp } from '../context/AppContext';
 
 const TopicsPage = () => {
+  const { appConfig, getAppDisplayName } = useApp();
   const [topics, setTopics] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -218,9 +220,19 @@ const TopicsPage = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Topics Management
-        </Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Topics Management
+          </Typography>
+          <Chip
+            label={`${getAppDisplayName()} App`}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        </Box>
         <Box>
           <Tooltip title="Refresh">
             <IconButton onClick={handleRefresh} disabled={loading} sx={{ mr: 1 }}>

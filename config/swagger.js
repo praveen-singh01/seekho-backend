@@ -6,8 +6,8 @@ const options = {
     openapi: '3.0.0',
     info: {
       title: 'Seekho Backend API',
-      version: '1.0.0',
-      description: 'A comprehensive learning video platform API with subscription management',
+      version: '2.0.0',
+      description: 'A comprehensive multi-tenant learning video platform API supporting both Seekho and Bolo apps with subscription management',
       contact: {
         name: 'Seekho Team',
         email: 'support@seekho.com'
@@ -32,6 +32,30 @@ const options = {
           scheme: 'bearer',
           bearerFormat: 'JWT',
           description: 'Enter JWT token obtained from Google OAuth login'
+        }
+      },
+      parameters: {
+        PackageIdHeader: {
+          name: 'X-Package-ID',
+          in: 'header',
+          required: true,
+          description: 'Package ID for multi-tenant support. Use "com.gumbo.learning" for Seekho app or "com.gumbo.english" for Bolo app',
+          schema: {
+            type: 'string',
+            enum: ['com.gumbo.learning', 'com.gumbo.english'],
+            example: 'com.gumbo.learning'
+          }
+        },
+        OptionalPackageIdHeader: {
+          name: 'X-Package-ID',
+          in: 'header',
+          required: false,
+          description: 'Optional Package ID for multi-tenant support. Defaults to "com.gumbo.learning" if not provided',
+          schema: {
+            type: 'string',
+            enum: ['com.gumbo.learning', 'com.gumbo.english'],
+            example: 'com.gumbo.learning'
+          }
         }
       },
       schemas: {

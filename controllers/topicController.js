@@ -1,6 +1,7 @@
 const Topic = require('../models/Topic');
 const Video = require('../models/Video');
 const Category = require('../models/Category');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get all topics
 // @route   GET /api/topics
@@ -17,21 +18,25 @@ const getTopics = async (req, res) => {
       sort = 'order' 
     } = req.query;
     
-    // Build query
-    const query = { isActive: true };
-    
+    // Build query with package ID filter
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = {
+      ...packageFilter,
+      isActive: true
+    };
+
     if (search) {
       query.$text = { $search: search };
     }
-    
+
     if (category) {
       query.category = category;
     }
-    
+
     if (difficulty) {
       query.difficulty = difficulty;
     }
-    
+
     if (isPremium !== undefined) {
       query.isPremium = isPremium === 'true';
     }
@@ -96,12 +101,17 @@ const getTopics = async (req, res) => {
 // @access  Public
 const getTopic = async (req, res) => {
   try {
-    const topic = await Topic.findById(req.params.id)
+    // Get topic with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const topic = await Topic.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    })
       .populate('category', 'name slug color')
       .populate('prerequisites', 'title slug')
       .populate({
         path: 'videos',
-        match: { isActive: true },
+        match: { isActive: true, ...packageFilter },
         select: 'title slug duration episodeNumber isLocked isFree thumbnail views'
       });
 
@@ -149,8 +159,12 @@ const getTopicVideos = async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = 'episodeNumber' } = req.query;
     
-    // Check if topic exists
-    const topic = await Topic.findById(req.params.id);
+    // Check if topic exists with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const topic = await Topic.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    });
     if (!topic || !topic.isActive) {
       return res.status(404).json({
         success: false,
@@ -177,9 +191,10 @@ const getTopicVideos = async (req, res) => {
         sortObj = { episodeNumber: 1 };
     }
 
-    const query = { 
-      topic: req.params.id, 
-      isActive: true 
+    const query = {
+      ...packageFilter,
+      topic: req.params.id,
+      isActive: true
     };
 
     const videos = await Video.find(query)

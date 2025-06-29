@@ -5,6 +5,7 @@ const UserFavorite = require('../models/UserFavorite');
 const UserBookmark = require('../models/UserBookmark');
 const WatchHistory = require('../models/WatchHistory');
 const Notification = require('../models/Notification');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get user watch history
 // @route   GET /api/users/watch-history
@@ -16,7 +17,8 @@ const getWatchHistory = async (req, res) => {
     const result = await WatchHistory.getUserWatchHistory(
       req.user.id,
       parseInt(page),
-      parseInt(limit)
+      parseInt(limit),
+      req.packageId
     );
 
     res.status(200).json({
@@ -48,8 +50,12 @@ const addFavorite = async (req, res) => {
       });
     }
 
-    // Check if video exists
-    const video = await Video.findById(videoId);
+    // Check if video exists with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({
+      _id: videoId,
+      ...packageFilter
+    });
     if (!video || !video.isActive) {
       return res.status(404).json({
         success: false,
@@ -59,6 +65,7 @@ const addFavorite = async (req, res) => {
 
     // Check if already favorited
     const existingFavorite = await UserFavorite.findOne({
+      ...packageFilter,
       user: req.user.id,
       video: videoId
     });
@@ -71,6 +78,7 @@ const addFavorite = async (req, res) => {
     }
 
     const favorite = await UserFavorite.create({
+      packageId: req.packageId,
       user: req.user.id,
       video: videoId
     });
@@ -93,7 +101,9 @@ const addFavorite = async (req, res) => {
 // @access  Private
 const removeFavorite = async (req, res) => {
   try {
+    const packageFilter = getPackageFilter(req.packageId);
     const favorite = await UserFavorite.findOneAndDelete({
+      ...packageFilter,
       user: req.user.id,
       video: req.params.videoId
     });
@@ -126,7 +136,8 @@ const getFavorites = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
-    const favorites = await UserFavorite.find({ user: req.user.id })
+    const packageFilter = getPackageFilter(req.packageId);
+    const favorites = await UserFavorite.find({ ...packageFilter, user: req.user.id })
       .sort({ addedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -143,7 +154,7 @@ const getFavorites = async (req, res) => {
         }
       });
 
-    const total = await UserFavorite.countDocuments({ user: req.user.id });
+    const total = await UserFavorite.countDocuments({ ...packageFilter, user: req.user.id });
 
     // Add access information
     for (let favorite of favorites) {
@@ -334,8 +345,9 @@ const addBookmark = async (req, res) => {
       });
     }
 
-    // Check if video exists
-    const video = await Video.findById(videoId);
+    // Check if video exists with package validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: videoId, ...packageFilter });
     if (!video || !video.isActive) {
       return res.status(404).json({
         success: false,
@@ -345,6 +357,7 @@ const addBookmark = async (req, res) => {
 
     // Check if already bookmarked
     const existingBookmark = await UserBookmark.findOne({
+      ...packageFilter,
       user: req.user.id,
       video: videoId
     });
@@ -357,6 +370,7 @@ const addBookmark = async (req, res) => {
     }
 
     const bookmark = await UserBookmark.create({
+      packageId: req.packageId,
       user: req.user.id,
       video: videoId,
       note: note || null

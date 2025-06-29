@@ -2,6 +2,11 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
+// Helper function to get selected app from localStorage
+const getSelectedApp = () => {
+  return localStorage.getItem('selectedApp') || 'com.gumbo.learning';
+};
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,13 +15,19 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include auth token
+// Add request interceptor to include auth token and package ID
 api.interceptors.request.use(
   (config) => {
+    // Add auth token
     const token = localStorage.getItem('adminToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add package ID header for multi-tenant support
+    const selectedApp = getSelectedApp();
+    config.headers['X-Package-ID'] = selectedApp;
+
     return config;
   },
   (error) => {
@@ -35,5 +46,19 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Utility function to create a request with specific package ID
+export const createApiRequestWithPackage = (packageId) => {
+  return axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Package-ID': packageId,
+    },
+  });
+};
+
+// Utility function to get current package ID
+export const getCurrentPackageId = getSelectedApp;
 
 export default api;

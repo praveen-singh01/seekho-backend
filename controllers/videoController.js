@@ -3,6 +3,7 @@ const Topic = require('../models/Topic');
 const Category = require('../models/Category');
 const UserProgress = require('../models/UserProgress');
 const WatchHistory = require('../models/WatchHistory');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get all videos
 // @route   GET /api/videos
@@ -20,20 +21,28 @@ const getVideos = async (req, res) => {
       sort = 'episodeNumber' 
     } = req.query;
     
-    // Build query
-    const query = { isActive: true };
-    
+    // Build query with package ID filter
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = {
+      ...packageFilter,
+      isActive: true
+    };
+
     if (search) {
       query.$text = { $search: search };
     }
-    
+
     if (topic) {
       query.topic = topic;
     }
-    
+
     if (category) {
-      // Find topics in the category first
-      const topics = await Topic.find({ category, isActive: true }).select('_id');
+      // Find topics in the category first with package filter
+      const topics = await Topic.find({
+        ...packageFilter,
+        category,
+        isActive: true
+      }).select('_id');
       query.topic = { $in: topics.map(t => t._id) };
     }
     
@@ -130,7 +139,12 @@ const getVideos = async (req, res) => {
 // @access  Public
 const getVideo = async (req, res) => {
   try {
-    const video = await Video.findById(req.params.id)
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    })
       .populate('topic', 'title slug category isPremium')
       .populate({
         path: 'topic',
@@ -514,7 +528,9 @@ const recordProgress = async (req, res) => {
       });
     }
 
-    const video = await Video.findById(req.params.id);
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
     if (!video || !video.isActive) {
       return res.status(404).json({
         success: false,
@@ -531,10 +547,11 @@ const recordProgress = async (req, res) => {
       });
     }
 
-    // Update or create progress record
+    // Update or create progress record with package ID
     const progressRecord = await UserProgress.findOneAndUpdate(
-      { user: req.user.id, video: req.params.id },
+      { ...packageFilter, user: req.user.id, video: req.params.id },
       {
+        packageId: req.packageId,
         progress: Math.max(progress, 0),
         duration,
         completed,
@@ -546,14 +563,15 @@ const recordProgress = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // Add to watch history
+    // Add to watch history with package ID
     await WatchHistory.addWatchHistory(
       req.user.id,
       req.params.id,
       progress,
       completed,
       deviceType,
-      Math.min(progress, duration) // session duration
+      Math.min(progress, duration), // session duration
+      req.packageId
     );
 
     res.status(200).json({

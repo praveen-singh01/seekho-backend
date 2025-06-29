@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get user notifications
 // @route   GET /api/notifications
@@ -11,11 +12,12 @@ const getNotifications = async (req, res) => {
       req.user.id,
       parseInt(page),
       parseInt(limit),
-      unreadOnly === 'true'
+      unreadOnly === 'true',
+      req.packageId
     );
 
-    // Get unread count
-    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    // Get unread count with package filter
+    const unreadCount = await Notification.getUnreadCount(req.user.id, req.packageId);
 
     res.status(200).json({
       success: true,

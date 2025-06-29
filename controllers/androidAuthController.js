@@ -1,6 +1,7 @@
 const { OAuth2Client } = require('google-auth-library');
 const { generateToken } = require('../middleware/auth');
 const User = require('../models/User');
+const { getPackageFilter } = require('../config/packages');
 
 // Initialize Google OAuth client for Android
 const androidClient = process.env.ANDROID_CLIENT_ID ? new OAuth2Client(process.env.ANDROID_CLIENT_ID) : null;
@@ -101,17 +102,18 @@ const verifyAndroidGoogleToken = async (req, res) => {
 
     const { sub: googleId, email, name, picture } = payload;
 
-    // Check if user already exists
-    let user = await User.findOne({ googleId });
+    // Check if user already exists with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    let user = await User.findOne({ ...packageFilter, googleId });
 
     if (user) {
       // Update last login
       user.lastLogin = new Date();
       await user.save();
     } else {
-      // Check if user exists with same email
-      user = await User.findOne({ email });
-      
+      // Check if user exists with same email in this package
+      user = await User.findOne({ ...packageFilter, email });
+
       if (user) {
         // Link Google account to existing user
         user.googleId = googleId;
@@ -119,8 +121,9 @@ const verifyAndroidGoogleToken = async (req, res) => {
         user.lastLogin = new Date();
         await user.save();
       } else {
-        // Create new user
+        // Create new user with package ID
         user = await User.create({
+          packageId: req.packageId,
           googleId,
           name,
           email,
@@ -228,8 +231,9 @@ const verifyAndroidGoogleToken = async (req, res) => {
 // @access  Private
 const refreshToken = async (req, res) => {
   try {
-    // Get user from the protect middleware
-    const user = await User.findById(req.user.id).populate('subscription');
+    // Get user from the protect middleware with package validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const user = await User.findOne({ _id: req.user.id, ...packageFilter }).populate('subscription');
     
     if (!user || !user.isActive) {
       return res.status(401).json({

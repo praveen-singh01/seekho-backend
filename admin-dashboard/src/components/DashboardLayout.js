@@ -15,6 +15,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Chip,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -35,6 +36,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import AppSelector from './AppSelector';
 
 const drawerWidth = 240;
 
@@ -57,6 +60,7 @@ const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { appConfig, getAppDisplayName } = useApp();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -80,9 +84,22 @@ const DashboardLayout = ({ children }) => {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
-          Seekho Admin
-        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
+            {appConfig?.name || 'Seekho'} Admin
+          </Typography>
+          <Chip
+            label={getAppDisplayName()}
+            size="small"
+            sx={{
+              mt: 0.5,
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontSize: '0.7rem',
+              height: 20,
+            }}
+          />
+        </Box>
       </Toolbar>
       <Divider />
       <List>
@@ -98,10 +115,10 @@ const DashboardLayout = ({ children }) => {
               }}
               sx={{
                 '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
+                  backgroundColor: appConfig?.color || theme.palette.primary.main,
                   color: 'white',
                   '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
+                    backgroundColor: appConfig?.color || theme.palette.primary.dark,
                   },
                   '& .MuiListItemIcon-root': {
                     color: 'white',
@@ -140,7 +157,11 @@ const DashboardLayout = ({ children }) => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Admin Dashboard
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* App Selector */}
+            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <AppSelector />
+            </Box>
             <Typography variant="body2" sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
               Welcome, {user?.name || 'Admin'}
             </Typography>

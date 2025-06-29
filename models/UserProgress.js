@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 const userProgressSchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -58,11 +71,11 @@ userProgressSchema.virtual('progressPercentage').get(function() {
   return Math.round((this.progress / this.duration) * 100);
 });
 
-// Compound index to ensure one progress record per user-video combination
-userProgressSchema.index({ user: 1, video: 1 }, { unique: true });
-userProgressSchema.index({ user: 1, lastWatchedAt: -1 });
-userProgressSchema.index({ user: 1, completed: 1 });
-userProgressSchema.index({ topic: 1, user: 1 });
+// Compound indexes for user-video combination and multi-tenancy
+userProgressSchema.index({ packageId: 1, user: 1, video: 1 }, { unique: true });
+userProgressSchema.index({ packageId: 1, user: 1, lastWatchedAt: -1 });
+userProgressSchema.index({ packageId: 1, user: 1, completed: 1 });
+userProgressSchema.index({ packageId: 1, topic: 1, user: 1 });
 
 // Auto-mark as completed if progress >= 90%
 userProgressSchema.pre('save', function(next) {
@@ -103,9 +116,14 @@ userProgressSchema.statics.getTopicProgress = async function(userId, topicId) {
 };
 
 // Static method to get user's overall statistics
-userProgressSchema.statics.getUserStats = async function(userId) {
+userProgressSchema.statics.getUserStats = async function(userId, packageId = null) {
+  const matchQuery = { user: mongoose.Types.ObjectId(userId) };
+  if (packageId) {
+    matchQuery.packageId = packageId;
+  }
+
   const stats = await this.aggregate([
-    { $match: { user: mongoose.Types.ObjectId(userId) } },
+    { $match: matchQuery },
     {
       $group: {
         _id: null,

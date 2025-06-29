@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 const subscriptionSchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -154,15 +167,15 @@ subscriptionSchema.virtual('daysRemaining').get(function() {
   return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 });
 
-// Index for better performance
-subscriptionSchema.index({ user: 1 });
-subscriptionSchema.index({ status: 1, endDate: 1 });
-subscriptionSchema.index({ paymentId: 1 });
-subscriptionSchema.index({ orderId: 1 });
-subscriptionSchema.index({ endDate: 1 }); // For finding expiring subscriptions
-subscriptionSchema.index({ razorpaySubscriptionId: 1 });
-subscriptionSchema.index({ nextBillingDate: 1 });
-subscriptionSchema.index({ isRecurring: 1, autoRenew: 1 });
+// Index for better performance and multi-tenancy
+subscriptionSchema.index({ packageId: 1, user: 1 });
+subscriptionSchema.index({ packageId: 1, status: 1, endDate: 1 });
+subscriptionSchema.index({ packageId: 1, paymentId: 1 });
+subscriptionSchema.index({ packageId: 1, orderId: 1 });
+subscriptionSchema.index({ packageId: 1, endDate: 1 }); // For finding expiring subscriptions
+subscriptionSchema.index({ packageId: 1, razorpaySubscriptionId: 1 });
+subscriptionSchema.index({ packageId: 1, nextBillingDate: 1 });
+subscriptionSchema.index({ packageId: 1, isRecurring: 1, autoRenew: 1 });
 
 // Check if subscription is active
 subscriptionSchema.methods.isActive = function() {

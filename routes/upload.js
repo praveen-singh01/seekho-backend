@@ -82,7 +82,7 @@ router.post('/category-thumbnail', authorize('admin'), async (req, res, next) =>
     }
 
     try {
-      const result = await uploadToS3(req.file, 'categories');
+      const result = await uploadToS3(req.file, 'categories', req.packageId);
 
       if (result.success) {
         res.status(200).json({
@@ -147,7 +147,7 @@ router.post('/topic-thumbnail', authorize('admin'), (req, res, next) => {
 
     try {
       // Upload file to S3
-      const uploadResult = await uploadToS3(req.file, 'topics');
+      const uploadResult = await uploadToS3(req.file, 'topics', req.packageId);
 
       if (!uploadResult.success) {
         return res.status(500).json({
@@ -213,7 +213,7 @@ router.post('/video', authorize('admin'), (req, res, next) => {
 
     try {
       // Upload file to S3
-      const uploadResult = await uploadToS3(req.file, 'videos');
+      const uploadResult = await uploadToS3(req.file, 'videos', req.packageId);
 
       if (!uploadResult.success) {
         return res.status(500).json({
@@ -276,7 +276,7 @@ router.post('/video-thumbnail', authorize('admin'), (req, res, next) => {
 
     try {
       // Upload file to S3
-      const uploadResult = await uploadToS3(req.file, 'thumbnails');
+      const uploadResult = await uploadToS3(req.file, 'thumbnails', req.packageId);
 
       if (!uploadResult.success) {
         return res.status(500).json({
@@ -339,7 +339,7 @@ router.post('/avatar', (req, res, next) => {
 
     try {
       // Upload file to S3
-      const uploadResult = await uploadToS3(req.file, 'avatars');
+      const uploadResult = await uploadToS3(req.file, 'avatars', req.packageId);
 
       if (!uploadResult.success) {
         return res.status(500).json({

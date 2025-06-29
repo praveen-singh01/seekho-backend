@@ -32,9 +32,11 @@ import {
 import { adminService } from '../services/adminService';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 
 const UsersPage = () => {
   const navigate = useNavigate();
+  const { appConfig, getAppDisplayName } = useApp();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -112,9 +114,19 @@ const UsersPage = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Users Management
-        </Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Users Management
+          </Typography>
+          <Chip
+            label={`${getAppDisplayName()} App Users`}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        </Box>
         <Tooltip title="Refresh">
           <IconButton onClick={handleRefresh} disabled={loading}>
             <Refresh />

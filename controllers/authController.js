@@ -2,6 +2,7 @@ const passport = require('passport');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../middleware/auth');
 const User = require('../models/User');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Initiate Google OAuth
 // @route   GET /api/auth/google
@@ -198,8 +199,10 @@ const register = async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    // Check if user already exists with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
     const existingUser = await User.findOne({
+      ...packageFilter,
       $or: [
         { email: email },
         { username: username }
@@ -213,8 +216,9 @@ const register = async (req, res) => {
       });
     }
 
-    // Create new user
+    // Create new user with package ID
     const user = await User.create({
+      packageId: req.packageId,
       name,
       email: email.toLowerCase(),
       username: username,
@@ -288,8 +292,10 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user by email and include password field
+    // Find user by email with package ID validation and include password field
+    const packageFilter = getPackageFilter(req.packageId);
     const user = await User.findOne({
+      ...packageFilter,
       email: email.toLowerCase(),
       provider: 'local',
       isActive: true

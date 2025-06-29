@@ -1,0 +1,346 @@
+{
+  "info": {
+    "name": "Seekho Backend - Multi-Tenant API",
+    "description": "Complete API collection for Seekho Backend with multi-tenant support for both Seekho and Bolo apps",
+    "version": "2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "seekhoPackageId",
+      "value": "com.gumbo.learning",
+      "type": "string"
+    },
+    {
+      "key": "boloPackageId",
+      "value": "com.gumbo.english",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Multi-Tenant Examples",
+      "description": "Examples showing multi-tenant usage patterns",
+      "item": [
+        {
+          "name": "Get Categories - Seekho App",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{seekhoPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories - Bolo App",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{boloPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories - Backward Compatible (No Package ID)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Invalid Package ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "invalid.package.id",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication - Seekho App",
+      "description": "Authentication endpoints for Seekho app",
+      "item": [
+        {
+          "name": "Register User - Seekho",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{seekhoPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Seekho Test User\",\n  \"email\": \"seekho.user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User - Seekho",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{seekhoPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"seekho.user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Android Google Auth - Seekho",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{seekhoPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"your-google-id-token-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/android/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "android", "google"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication - Bolo App",
+      "description": "Authentication endpoints for Bolo app",
+      "item": [
+        {
+          "name": "Register User - Bolo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{boloPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bolo Test User\",\n  \"email\": \"bolo.user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User - Bolo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{boloPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bolo.user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Android Google Auth - Bolo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{boloPackageId}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"your-google-id-token-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/android/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "android", "google"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Data Isolation Tests",
+      "description": "Tests to verify data isolation between apps",
+      "item": [
+        {
+          "name": "Cross-Tenant Access Test (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{boloPackageId}}",
+                "type": "text",
+                "description": "Using Bolo package ID"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": "Using Seekho user token"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "profile"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

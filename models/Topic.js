@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 const topicSchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   title: {
     type: String,
     required: [true, 'Topic title is required'],
@@ -86,11 +99,11 @@ topicSchema.virtual('videos', {
   options: { sort: { episodeNumber: 1 } }
 });
 
-// Compound index for category and order
-topicSchema.index({ category: 1, order: 1 });
-topicSchema.index({ slug: 1 });
-topicSchema.index({ isActive: 1, isPremium: 1 });
-topicSchema.index({ title: 'text', description: 'text', tags: 'text' });
+// Compound indexes for category, order, and multi-tenancy
+topicSchema.index({ packageId: 1, category: 1, order: 1 });
+topicSchema.index({ packageId: 1, slug: 1 }, { unique: true });
+topicSchema.index({ packageId: 1, isActive: 1, isPremium: 1 });
+topicSchema.index({ packageId: 1, title: 'text', description: 'text', tags: 'text' });
 
 // Generate slug before saving
 topicSchema.pre('save', function(next) {

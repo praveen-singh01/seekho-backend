@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 const videoSchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   title: {
     type: String,
     required: [true, 'Video title is required'],
@@ -124,13 +137,13 @@ videoSchema.virtual('formattedDuration').get(function() {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
-// Compound index for topic and episode number
-videoSchema.index({ topic: 1, episodeNumber: 1 }, { unique: true });
-videoSchema.index({ slug: 1 });
-videoSchema.index({ isActive: 1, isLocked: 1 });
-videoSchema.index({ title: 'text', description: 'text' });
-videoSchema.index({ views: -1 });
-videoSchema.index({ createdAt: -1 });
+// Compound indexes for topic, episode number, and multi-tenancy
+videoSchema.index({ packageId: 1, topic: 1, episodeNumber: 1 }, { unique: true });
+videoSchema.index({ packageId: 1, slug: 1 }, { unique: true });
+videoSchema.index({ packageId: 1, isActive: 1, isLocked: 1 });
+videoSchema.index({ packageId: 1, title: 'text', description: 'text' });
+videoSchema.index({ packageId: 1, views: -1 });
+videoSchema.index({ packageId: 1, createdAt: -1 });
 
 // Generate slug before saving
 videoSchema.pre('save', function(next) {

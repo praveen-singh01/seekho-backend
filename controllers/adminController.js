@@ -11,30 +11,35 @@ const WatchHistory = require('../models/WatchHistory');
 const Notification = require('../models/Notification');
 const { uploadToS3, deleteFile } = require('../services/uploadService');
 const { convertS3ToCloudFront, invalidateCache, isCloudFrontConfigured, isSignedUrlConfigured, generateSignedUrl, generateCloudFrontUrl } = require('../services/cloudfrontService');
+const { getPackageFilter, getPackageName, SUPPORTED_PACKAGES } = require('../config/packages');
 
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/dashboard
 // @access  Private/Admin
 const getDashboard = async (req, res) => {
   try {
-    // Get basic counts
-    const totalUsers = await User.countDocuments({ isActive: true });
-    const totalCategories = await Category.countDocuments({ isActive: true });
-    const totalTopics = await Topic.countDocuments({ isActive: true });
-    const totalVideos = await Video.countDocuments({ isActive: true });
-    
-    // Get subscription analytics
-    const subscriptionAnalytics = await SubscriptionService.getAnalytics();
-    
-    // Get recent users
-    const recentUsers = await User.find({ isActive: true })
+    // Get package filter for multi-tenant support
+    const packageFilter = req.packageId ? getPackageFilter(req.packageId) : {};
+    const packageName = req.packageId ? getPackageName(req.packageId) : 'All Apps';
+
+    // Get basic counts with package filtering
+    const totalUsers = await User.countDocuments({ ...packageFilter, isActive: true });
+    const totalCategories = await Category.countDocuments({ ...packageFilter, isActive: true });
+    const totalTopics = await Topic.countDocuments({ ...packageFilter, isActive: true });
+    const totalVideos = await Video.countDocuments({ ...packageFilter, isActive: true });
+
+    // Get subscription analytics with package filtering
+    const subscriptionAnalytics = await SubscriptionService.getAnalytics(req.packageId);
+
+    // Get recent users with package filtering
+    const recentUsers = await User.find({ ...packageFilter, isActive: true })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('name email createdAt lastLogin')
       .populate('subscription', 'status plan endDate');
 
-    // Get popular videos
-    const popularVideos = await Video.find({ isActive: true })
+    // Get popular videos with package filtering
+    const popularVideos = await Video.find({ ...packageFilter, isActive: true })
       .sort({ views: -1 })
       .limit(5)
       .select('title views duration episodeNumber')
@@ -58,6 +63,11 @@ const getDashboard = async (req, res) => {
     ]);
 
     const dashboard = {
+      packageInfo: {
+        packageId: req.packageId || 'all',
+        packageName,
+        supportedPackages: SUPPORTED_PACKAGES
+      },
       overview: {
         totalUsers,
         totalCategories,
@@ -91,17 +101,20 @@ const getDashboard = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status, hasSubscription } = req.query;
-    
-    // Build query
-    const query = {};
-    
+
+    // Build query with package ID filter
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = {
+      ...packageFilter
+    };
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     if (status) {
       query.isActive = status === 'active';
     }
@@ -152,8 +165,10 @@ const createCategory = async (req, res) => {
   try {
     const { name, description, color, thumbnail, icon, order } = req.body;
 
-    // Check if category with same name already exists
+    // Check if category with same name already exists within the same package
+    const packageFilter = getPackageFilter(req.packageId);
     const existingCategory = await Category.findOne({
+      ...packageFilter,
       name: { $regex: new RegExp(`^${name}$`, 'i') }
     });
 
@@ -164,14 +179,15 @@ const createCategory = async (req, res) => {
       });
     }
 
-    // If no order specified, set it to the next available order
+    // If no order specified, set it to the next available order within the same package
     let categoryOrder = order;
     if (!categoryOrder) {
-      const lastCategory = await Category.findOne().sort({ order: -1 });
+      const lastCategory = await Category.findOne(packageFilter).sort({ order: -1 });
       categoryOrder = lastCategory ? lastCategory.order + 1 : 1;
     }
 
     const categoryData = {
+      packageId: req.packageId, // Add package ID from middleware
       name,
       description,
       color: color || '#007bff',
@@ -216,9 +232,12 @@ const createCategory = async (req, res) => {
 // @access  Private/Admin
 const updateCategory = async (req, res) => {
   try {
+    // Remove packageId from update data to prevent modification
+    const { packageId, ...updateData } = req.body;
+
     const category = await Category.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -235,6 +254,20 @@ const updateCategory = async (req, res) => {
     });
   } catch (error) {
     console.error('Update category error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -247,15 +280,34 @@ const updateCategory = async (req, res) => {
 // @access  Private/Admin
 const createTopic = async (req, res) => {
   try {
-    const topic = await Topic.create(req.body);
+    const topicData = {
+      ...req.body,
+      packageId: req.packageId // Add package ID from middleware
+    };
+
+    const topic = await Topic.create(topicData);
     await topic.populate('category', 'name slug');
-    
+
     res.status(201).json({
       success: true,
       data: topic
     });
   } catch (error) {
     console.error('Create topic error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -268,9 +320,12 @@ const createTopic = async (req, res) => {
 // @access  Private/Admin
 const updateTopic = async (req, res) => {
   try {
+    // Remove packageId from update data to prevent modification
+    const { packageId, ...updateData } = req.body;
+
     const topic = await Topic.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('category', 'name slug');
 
@@ -287,6 +342,20 @@ const updateTopic = async (req, res) => {
     });
   } catch (error) {
     console.error('Update topic error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -301,18 +370,33 @@ const createVideo = async (req, res) => {
   try {
     const videoData = {
       ...req.body,
+      packageId: req.packageId, // Add package ID from middleware
       uploadedBy: req.user.id
     };
-    
+
     const video = await Video.create(videoData);
     await video.populate('topic', 'title slug');
-    
+
     res.status(201).json({
       success: true,
       data: video
     });
   } catch (error) {
     console.error('Create video error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -325,9 +409,12 @@ const createVideo = async (req, res) => {
 // @access  Private/Admin
 const updateVideo = async (req, res) => {
   try {
+    // Remove packageId from update data to prevent modification
+    const { packageId, ...updateData } = req.body;
+
     const video = await Video.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('topic', 'title slug');
 
@@ -344,6 +431,20 @@ const updateVideo = async (req, res) => {
     });
   } catch (error) {
     console.error('Update video error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -358,8 +459,11 @@ const getCategories = async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
 
-    // Build query
-    const query = {};
+    // Build query with package ID filter
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = {
+      ...packageFilter
+    };
 
     if (search) {
       query.$or = [
@@ -439,7 +543,12 @@ const reorderCategories = async (req, res) => {
 // @access  Private/Admin
 const getCategoryAnalytics = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
+    // Get category with package filtering
+    const packageFilter = getPackageFilter(req.packageId);
+    const category = await Category.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    });
 
     if (!category) {
       return res.status(404).json({
@@ -448,10 +557,10 @@ const getCategoryAnalytics = async (req, res) => {
       });
     }
 
-    const topics = await Topic.find({ category: req.params.id });
+    const topics = await Topic.find({ ...packageFilter, category: req.params.id });
     const topicIds = topics.map(topic => topic._id);
 
-    const videos = await Video.find({ topic: { $in: topicIds } });
+    const videos = await Video.find({ ...packageFilter, topic: { $in: topicIds } });
 
     // Calculate analytics
     const analytics = {
@@ -572,8 +681,11 @@ const getUserAnalytics = async (req, res) => {
 // @access  Private/Admin
 const getContentAnalytics = async (req, res) => {
   try {
-    // Get popular videos
-    const popularVideos = await Video.find({ isActive: true })
+    // Get package filter
+    const packageFilter = getPackageFilter(req.packageId);
+
+    // Get popular videos with package filtering
+    const popularVideos = await Video.find({ ...packageFilter, isActive: true })
       .sort({ views: -1 })
       .limit(10)
       .populate('topic', 'title category')
@@ -785,8 +897,9 @@ const sendNotification = async (req, res) => {
     let targetUsers = [];
 
     if (sendToAll) {
-      // Send to all active users
-      const users = await User.find({ isActive: true }).select('_id');
+      // Send to all active users within the same package
+      const packageFilter = getPackageFilter(req.packageId);
+      const users = await User.find({ ...packageFilter, isActive: true }).select('_id');
       targetUsers = users.map(user => user._id);
     } else if (userIds && userIds.length > 0) {
       // Send to specific users

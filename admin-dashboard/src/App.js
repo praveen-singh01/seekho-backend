@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
+import { AppThemeProvider } from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
@@ -18,13 +20,29 @@ import SubscriptionAnalyticsPage from './pages/SubscriptionAnalyticsPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  console.log('ProtectedRoute: isAuthenticated =', isAuthenticated, 'loading =', loading);
+
+  if (loading) {
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <CircularProgress />
+    </Box>;
+  }
+
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 // Public Route Component (redirect if authenticated)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  console.log('PublicRoute: isAuthenticated =', isAuthenticated, 'loading =', loading);
+
+  if (loading) {
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <CircularProgress />
+    </Box>;
+  }
+
   return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
 };
 
@@ -46,7 +64,9 @@ function App() {
   }
 
   return (
-    <Routes>
+    <AppProvider>
+      <AppThemeProvider>
+        <Routes>
       {/* Public Routes */}
       <Route
         path="/login"
@@ -81,7 +101,9 @@ function App() {
           </ProtectedRoute>
         }
       />
-    </Routes>
+        </Routes>
+      </AppThemeProvider>
+    </AppProvider>
   );
 }
 

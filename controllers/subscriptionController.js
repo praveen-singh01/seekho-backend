@@ -2,6 +2,7 @@ const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const SubscriptionService = require('../services/subscriptionService');
 const PaymentService = require('../services/paymentService');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get subscription plans
 // @route   GET /api/subscriptions/plans
@@ -16,18 +17,23 @@ const getPlans = async (req, res) => {
     // Check if user is authenticated (optional)
     if (req.user && req.user.id) {
       try {
-        user = await User.findById(req.user.id);
+        // Validate package ID matches user's package
+        const packageFilter = getPackageFilter(req.packageId);
+        user = await User.findOne({ _id: req.user.id, ...packageFilter });
         if (user) {
           isTrialEligible = user.isTrialEligible();
 
-          // Get user's active subscription
-          const subscriptionResult = await SubscriptionService.getUserSubscription(req.user.id);
+          // Get user's active subscription with package filter
+          const subscriptionResult = await SubscriptionService.getUserSubscription(req.user.id, req.packageId);
           if (subscriptionResult.success && subscriptionResult.subscription) {
             activeSubscription = subscriptionResult.subscription;
           }
 
-          // Check if user has ever purchased (has any subscription record)
-          const hasSubscriptionHistory = await Subscription.findOne({ user: req.user.id });
+          // Check if user has ever purchased (has any subscription record) with package filter
+          const hasSubscriptionHistory = await Subscription.findOne({
+            ...packageFilter,
+            user: req.user.id
+          });
           hasEverPurchased = !!hasSubscriptionHistory;
         }
       } catch (error) {
@@ -140,8 +146,9 @@ const createOrder = async (req, res) => {
       recurring = true;
     }
 
-    // Get user for trial eligibility check
-    const user = await User.findById(req.user.id);
+    // Get user for trial eligibility check with package validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const user = await User.findOne({ _id: req.user.id, ...packageFilter });
 
     // For trial, frontend might send the monthly plan ID but with freeTrial=true
     // We need to check if this should be treated as trial based on user eligibility
@@ -376,12 +383,14 @@ const verifyPayment = async (req, res) => {
             orderId: razorpay_order_id,
             paymentId: razorpay_payment_id,
             signature: razorpay_signature
-          }
+          },
+          req.packageId
         );
 
         // Mark trial as used if activation is successful
         if (subscriptionResult.success) {
-          const user = await User.findById(req.user.id);
+          const packageFilter = getPackageFilter(req.packageId);
+          const user = await User.findOne({ _id: req.user.id, ...packageFilter });
           await user.markTrialUsed();
         }
       } else {
@@ -474,7 +483,7 @@ const verifyPayment = async (req, res) => {
 // @access  Private
 const getStatus = async (req, res) => {
   try {
-    const result = await SubscriptionService.getUserSubscription(req.user.id);
+    const result = await SubscriptionService.getUserSubscription(req.user.id, req.packageId);
 
     if (!result.success) {
       return res.status(500).json({

@@ -45,8 +45,10 @@ import {
 import { adminService } from '../services/adminService';
 import { uploadService } from '../services/uploadService';
 import { format } from 'date-fns';
+import { useApp } from '../context/AppContext';
 
 const VideosPage = () => {
+  const { appConfig, getAppDisplayName } = useApp();
   const [videos, setVideos] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -269,9 +271,19 @@ const VideosPage = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Videos Management
-        </Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Videos Management
+          </Typography>
+          <Chip
+            label={`${getAppDisplayName()} App`}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        </Box>
         <Box>
           <Tooltip title="Refresh">
             <IconButton onClick={handleRefresh} disabled={loading} sx={{ mr: 1 }}>

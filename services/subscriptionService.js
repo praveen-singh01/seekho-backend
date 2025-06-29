@@ -1,14 +1,16 @@
 const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const PaymentService = require('./paymentService');
+const { getPackageFilter } = require('../config/packages');
 
 class SubscriptionService {
   // Create new subscription (one-time payment)
-  static async createOneTimeSubscription(userId, plan, paymentData) {
+  static async createOneTimeSubscription(userId, plan, paymentData, packageId) {
     try {
       const { startDate, endDate, amount } = PaymentService.calculateSubscriptionDates(plan);
 
       const subscription = await Subscription.create({
+        packageId,
         user: userId,
         plan,
         status: 'active',
@@ -182,12 +184,18 @@ class SubscriptionService {
   }
 
   // Get user's active subscription
-  static async getUserSubscription(userId) {
+  static async getUserSubscription(userId, packageId = null) {
     try {
-      const subscription = await Subscription.findOne({
+      const query = {
         user: userId,
         status: 'active'
-      }).sort({ createdAt: -1 });
+      };
+
+      if (packageId) {
+        query.packageId = packageId;
+      }
+
+      const subscription = await Subscription.findOne(query).sort({ createdAt: -1 });
 
       return {
         success: true,
@@ -270,17 +278,19 @@ class SubscriptionService {
   }
 
   // Get subscription analytics
-  static async getAnalytics() {
+  static async getAnalytics(packageId = null) {
     try {
-      const totalSubscriptions = await Subscription.countDocuments();
-      const activeSubscriptions = await Subscription.countDocuments({ status: 'active' });
-      const trialSubscriptions = await Subscription.countDocuments({ plan: 'trial', status: 'active' });
-      const monthlySubscriptions = await Subscription.countDocuments({ plan: 'monthly', status: 'active' });
-      const yearlySubscriptions = await Subscription.countDocuments({ plan: 'yearly', status: 'active' });
+      const packageFilter = packageId ? getPackageFilter(packageId) : {};
 
-      // Revenue calculation
+      const totalSubscriptions = await Subscription.countDocuments(packageFilter);
+      const activeSubscriptions = await Subscription.countDocuments({ ...packageFilter, status: 'active' });
+      const trialSubscriptions = await Subscription.countDocuments({ ...packageFilter, plan: 'trial', status: 'active' });
+      const monthlySubscriptions = await Subscription.countDocuments({ ...packageFilter, plan: 'monthly', status: 'active' });
+      const yearlySubscriptions = await Subscription.countDocuments({ ...packageFilter, plan: 'yearly', status: 'active' });
+
+      // Revenue calculation with package filter
       const revenueData = await Subscription.aggregate([
-        { $match: { status: 'active' } },
+        { $match: { ...packageFilter, status: 'active' } },
         {
           $group: {
             _id: null,
@@ -290,10 +300,11 @@ class SubscriptionService {
         }
       ]);
 
-      // Monthly growth
+      // Monthly growth with package filter
       const monthlyGrowth = await Subscription.aggregate([
         {
           $match: {
+            ...packageFilter,
             createdAt: { $gte: new Date(new Date().setMonth(new Date().getMonth() - 12)) }
           }
         },
@@ -694,16 +705,22 @@ class SubscriptionService {
   }
 
   // Activate trial subscription after payment
-  static async activateTrialSubscription(userId, paymentData) {
+  static async activateTrialSubscription(userId, paymentData, packageId = null) {
     try {
       // Find the pending trial subscription
-      const subscription = await Subscription.findOne({
+      const query = {
         user: userId,
         orderId: paymentData.orderId,
         plan: 'trial',
         status: 'pending',
         isTrialSubscription: true
-      });
+      };
+
+      if (packageId) {
+        query.packageId = packageId;
+      }
+
+      const subscription = await Subscription.findOne(query);
 
       if (!subscription) {
         throw new Error('Pending trial subscription not found');

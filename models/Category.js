@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 const categorySchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   name: {
     type: String,
     required: [true, 'Category name is required'],
@@ -72,9 +85,10 @@ categorySchema.virtual('topics', {
   options: { sort: { order: 1 } }
 });
 
-// Additional indexes for better performance
-categorySchema.index({ isActive: 1, order: 1 });
-categorySchema.index({ name: 'text', description: 'text' });
+// Additional indexes for better performance and multi-tenancy
+categorySchema.index({ packageId: 1, isActive: 1, order: 1 });
+categorySchema.index({ packageId: 1, name: 'text', description: 'text' });
+categorySchema.index({ packageId: 1, slug: 1 }, { unique: true });
 
 // Generate slug before saving
 categorySchema.pre('save', function(next) {

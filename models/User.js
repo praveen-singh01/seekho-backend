@@ -2,6 +2,19 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  // Multi-tenant package ID for app segregation
+  packageId: {
+    type: String,
+    required: [true, 'Package ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        const { SUPPORTED_PACKAGES } = require('../config/packages');
+        return SUPPORTED_PACKAGES.includes(v);
+      },
+      message: 'Invalid package ID'
+    }
+  },
   name: {
     type: String,
     required: [true, 'Name is required'],
@@ -123,10 +136,13 @@ userSchema.methods.getActiveSubscription = async function() {
   return subscription;
 };
 
-// Additional indexes for better performance
-userSchema.index({ createdAt: -1 });
-userSchema.index({ role: 1 });
-userSchema.index({ isActive: 1 });
+// Additional indexes for better performance and multi-tenancy
+userSchema.index({ packageId: 1, createdAt: -1 });
+userSchema.index({ packageId: 1, role: 1 });
+userSchema.index({ packageId: 1, isActive: 1 });
+userSchema.index({ packageId: 1, email: 1 }, { unique: true });
+userSchema.index({ packageId: 1, username: 1 }, { unique: true, sparse: true });
+userSchema.index({ packageId: 1, googleId: 1 }, { unique: true, sparse: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

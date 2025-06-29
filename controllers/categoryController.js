@@ -1,5 +1,6 @@
 const Category = require('../models/Category');
 const Topic = require('../models/Topic');
+const { getPackageFilter } = require('../config/packages');
 const Video = require('../models/Video');
 
 // @desc    Get all categories
@@ -9,9 +10,13 @@ const getCategories = async (req, res) => {
   try {
     const { page = 1, limit = 10, search, sort = 'order' } = req.query;
     
-    // Build query
-    const query = { isActive: true };
-    
+    // Build query with package ID filter
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = {
+      ...packageFilter,
+      isActive: true
+    };
+
     if (search) {
       query.$text = { $search: search };
     }
@@ -65,12 +70,16 @@ const getCategories = async (req, res) => {
 // @access  Public
 const getCategory = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id)
-      .populate({
-        path: 'topics',
-        match: { isActive: true },
-        select: 'title slug description difficulty estimatedDuration metadata isPremium order'
-      });
+    // Get category with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const category = await Category.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    }).populate({
+      path: 'topics',
+      match: { isActive: true, ...packageFilter },
+      select: 'title slug description difficulty estimatedDuration metadata isPremium order'
+    });
 
     if (!category || !category.isActive) {
       return res.status(404).json({
@@ -99,8 +108,12 @@ const getCategoryTopics = async (req, res) => {
   try {
     const { page = 1, limit = 10, difficulty, sort = 'order' } = req.query;
     
-    // Check if category exists
-    const category = await Category.findById(req.params.id);
+    // Check if category exists with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const category = await Category.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    });
     if (!category || !category.isActive) {
       return res.status(404).json({
         success: false,
@@ -108,10 +121,11 @@ const getCategoryTopics = async (req, res) => {
       });
     }
 
-    // Build query
-    const query = { 
-      category: req.params.id, 
-      isActive: true 
+    // Build query with package ID filter
+    const query = {
+      ...packageFilter,
+      category: req.params.id,
+      isActive: true
     };
     
     if (difficulty) {

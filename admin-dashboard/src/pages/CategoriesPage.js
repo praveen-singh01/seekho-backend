@@ -38,8 +38,10 @@ import {
 } from '@mui/icons-material';
 import { adminService } from '../services/adminService';
 import { format } from 'date-fns';
+import { useApp } from '../context/AppContext';
 
 const CategoriesPage = () => {
+  const { appConfig, getAppDisplayName } = useApp();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -170,9 +172,19 @@ const CategoriesPage = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Categories Management
-        </Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Categories Management
+          </Typography>
+          <Chip
+            label={`${getAppDisplayName()} App`}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        </Box>
         <Box>
           <Tooltip title="Refresh">
             <IconButton onClick={handleRefresh} disabled={loading} sx={{ mr: 1 }}>
@@ -183,6 +195,12 @@ const CategoriesPage = () => {
             variant="contained"
             startIcon={<Add />}
             onClick={() => handleOpenDialog()}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              '&:hover': {
+                backgroundColor: appConfig?.color || '#1565c0',
+              },
+            }}
           >
             Add Category
           </Button>

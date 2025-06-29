@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getPackageFilter } = require('../config/packages');
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -24,12 +25,30 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       // Get user from token
-      const user = await User.findById(decoded.id).populate('subscription');
-      
+      let user = await User.findOne({ _id: decoded.id }).populate('subscription');
+
+      // If user is not found or not admin, try with package filtering
+      if (!user && req.packageId) {
+        const packageFilter = getPackageFilter(req.packageId);
+        user = await User.findOne({
+          _id: decoded.id,
+          ...packageFilter
+        }).populate('subscription');
+      }
+
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Token is not valid. User not found.'
+          message: 'Token is not valid. User not found or package mismatch.'
+        });
+      }
+
+      // Ensure user belongs to the correct package (skip for admin users)
+      if (req.packageId && user.role !== 'admin' && user.packageId !== req.packageId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Package ID mismatch.',
+          code: 'PACKAGE_ID_MISMATCH'
         });
       }
 
@@ -69,10 +88,22 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).populate('subscription');
-        
+        let user = await User.findOne({ _id: decoded.id }).populate('subscription');
+
+        // If user is not found and package ID is provided, try with package filtering
+        if (!user && req.packageId) {
+          const packageFilter = getPackageFilter(req.packageId);
+          user = await User.findOne({
+            _id: decoded.id,
+            ...packageFilter
+          }).populate('subscription');
+        }
+
         if (user && user.isActive) {
-          req.user = user;
+          // Admin users can access all packages, regular users must match package
+          if (!req.packageId || user.role === 'admin' || user.packageId === req.packageId) {
+            req.user = user;
+          }
         }
       } catch (error) {
         // Invalid token, but continue without user

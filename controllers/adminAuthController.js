@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Hardcoded super admin credentials
 const SUPER_ADMIN = {
   username: 'superadmin',
-  password: 'SuperAdmin@123', // This will be hashed
+  password: 'superadmin@123', // This will be hashed
   email: 'superadmin@seekho.com',
   name: 'Super Administrator'
 };
@@ -36,7 +36,7 @@ const adminLogin = async (req, res) => {
         user = await User.findOne({ email: SUPER_ADMIN.email });
         
         if (!user) {
-          // Create super admin user
+          // Create super admin user with default package ID
           const hashedPassword = await bcrypt.hash(SUPER_ADMIN.password, 12);
           user = await User.create({
             name: SUPER_ADMIN.name,
@@ -44,6 +44,7 @@ const adminLogin = async (req, res) => {
             password: hashedPassword,
             role: 'admin',
             provider: 'local',
+            packageId: 'com.gumbo.learning', // Default package for admin
             isVerified: true,
             isActive: true
           });
@@ -152,7 +153,7 @@ const createAdmin = async (req, res) => {
       });
     }
 
-    // Create new admin user
+    // Create new admin user with default package ID
     const adminUser = await User.create({
       name,
       email: email,
@@ -160,6 +161,7 @@ const createAdmin = async (req, res) => {
       password, // Will be hashed by pre-save middleware
       role: 'admin',
       provider: 'local',
+      packageId: 'com.gumbo.learning', // Default package for admin
       isVerified: true,
       isActive: true
     });

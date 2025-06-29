@@ -15,6 +15,7 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Divider,
 } from '@mui/material';
 import {
   People,
@@ -22,10 +23,13 @@ import {
   VideoLibrary,
   AttachMoney,
   TrendingUp,
+  Apps,
 } from '@mui/icons-material';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adminService } from '../services/adminService';
 import { format } from 'date-fns';
+import { useApp } from '../context/AppContext';
+import AppStatusIndicator from '../components/AppStatusIndicator';
 
 const StatCard = ({ title, value, icon, color, subtitle }) => (
   <Card sx={{ height: '100%' }}>
@@ -58,6 +62,7 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { appConfig, getAppDisplayName } = useApp();
 
   useEffect(() => {
     fetchDashboardData();
@@ -95,7 +100,7 @@ const DashboardPage = () => {
     );
   }
 
-  const { overview, recentUsers, popularVideos, revenueData, subscriptionBreakdown } = dashboardData;
+  const { overview, recentUsers, popularVideos, revenueData, subscriptionBreakdown, packageInfo } = dashboardData;
 
   // Prepare chart data
   const subscriptionChartData = Object.entries(subscriptionBreakdown || {}).map(([plan, count]) => ({
@@ -107,9 +112,52 @@ const DashboardPage = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
-        Dashboard Overview
-      </Typography>
+      {/* App-specific Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            {getAppDisplayName()} Dashboard
+          </Typography>
+          <Chip
+            icon={<Apps />}
+            label={packageInfo?.packageName || 'Unknown Package'}
+            sx={{
+              backgroundColor: appConfig?.color || '#1976d2',
+              color: 'white',
+              fontWeight: 'bold',
+            }}
+          />
+        </Box>
+
+        {/* Package Information Card */}
+        {packageInfo && (
+          <Card sx={{ mb: 2, backgroundColor: `${appConfig?.color || '#1976d2'}10` }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Apps sx={{ color: appConfig?.color || '#1976d2' }} />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    Current Application: {packageInfo.packageName}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Package ID: {packageInfo.packageId} • Data isolated from other apps
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+
+      {/* App Status Indicator */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={4}>
+          <AppStatusIndicator />
+        </Grid>
+        <Grid item xs={12} md={8}>
+          {/* Placeholder for other status indicators */}
+        </Grid>
+      </Grid>
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -118,7 +166,7 @@ const DashboardPage = () => {
             title="Total Users"
             value={overview?.totalUsers || 0}
             icon={<People sx={{ fontSize: 40 }} />}
-            color="#1976d2"
+            color={appConfig?.color || "#1976d2"}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -126,7 +174,7 @@ const DashboardPage = () => {
             title="Categories"
             value={overview?.totalCategories || 0}
             icon={<Category sx={{ fontSize: 40 }} />}
-            color="#2e7d32"
+            color={appConfig?.color || "#2e7d32"}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -134,7 +182,7 @@ const DashboardPage = () => {
             title="Videos"
             value={overview?.totalVideos || 0}
             icon={<VideoLibrary sx={{ fontSize: 40 }} />}
-            color="#ed6c02"
+            color={appConfig?.color || "#ed6c02"}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -142,7 +190,7 @@ const DashboardPage = () => {
             title="Revenue"
             value={`₹${overview?.totalRevenue || 0}`}
             icon={<AttachMoney sx={{ fontSize: 40 }} />}
-            color="#9c27b0"
+            color={appConfig?.color || "#9c27b0"}
             subtitle={`${overview?.activeSubscriptions || 0} active subscriptions`}
           />
         </Grid>
@@ -191,7 +239,7 @@ const DashboardPage = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="revenue" fill="#1976d2" />
+                  <Bar dataKey="revenue" fill={appConfig?.color || "#1976d2"} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

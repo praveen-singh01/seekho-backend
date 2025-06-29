@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk');
 const multer = require('multer');
 const path = require('path');
+const { getPackageFilePath, getStoragePrefix } = require('../config/packages');
 
 // Configure AWS
 AWS.config.update({
@@ -29,14 +30,19 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Generate unique filename
-const generateFileName = (originalname, folder = '') => {
+// Generate unique filename with package ID segregation
+const generateFileName = (originalname, folder = '', packageId = null) => {
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 15);
   const extension = path.extname(originalname);
   const baseName = path.basename(originalname, extension).replace(/[^a-zA-Z0-9]/g, '-');
-  
-  return folder ? `${folder}/${timestamp}-${randomString}-${baseName}${extension}` : `${timestamp}-${randomString}-${baseName}${extension}`;
+  const fileName = `${timestamp}-${randomString}-${baseName}${extension}`;
+
+  if (packageId) {
+    return getPackageFilePath(packageId, fileName, folder);
+  }
+
+  return folder ? `${folder}/${fileName}` : fileName;
 };
 
 // Custom S3 storage using memory storage + manual upload
@@ -50,9 +56,9 @@ const createS3Upload = (folder = 'uploads') => {
   });
 };
 
-// Upload file to S3 manually
-const uploadToS3 = async (file, folder = 'uploads') => {
-  const fileName = generateFileName(file.originalname, folder);
+// Upload file to S3 manually with package ID segregation
+const uploadToS3 = async (file, folder = 'uploads', packageId = null) => {
+  const fileName = generateFileName(file.originalname, folder, packageId);
 
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
