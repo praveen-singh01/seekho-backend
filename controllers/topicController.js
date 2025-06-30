@@ -242,8 +242,13 @@ const getTopicVideos = async (req, res) => {
 // @access  Private
 const getTopicProgress = async (req, res) => {
   try {
-    const topic = await Topic.findById(req.params.id);
-    
+    // Get topic with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const topic = await Topic.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    });
+
     if (!topic || !topic.isActive) {
       return res.status(404).json({
         success: false,
@@ -251,28 +256,46 @@ const getTopicProgress = async (req, res) => {
       });
     }
 
-    const videos = await Video.find({ 
-      topic: req.params.id, 
-      isActive: true 
+    // Get user's progress for this topic with package filtering
+    const UserProgress = require('../models/UserProgress');
+    const progressData = await UserProgress.getTopicProgress(
+      req.user.id,
+      req.params.id,
+      req.packageId
+    );
+
+    // Get videos with access information
+    const videos = await Video.find({
+      ...packageFilter,
+      topic: req.params.id,
+      isActive: true
     }).sort({ episodeNumber: 1 });
 
-    // This would require a separate UserProgress model to track actual progress
-    // For now, we'll return basic information
-    const progress = {
-      topicId: topic._id,
-      totalVideos: videos.length,
-      completedVideos: 0, // Would come from UserProgress model
-      progressPercentage: 0,
-      lastWatchedVideo: null,
-      hasAccess: topic.hasAccess(req.user),
-      videos: videos.map(video => ({
+    // Add access and progress information to videos
+    const videosWithProgress = await Promise.all(videos.map(async (video) => {
+      const hasAccess = await video.hasAccess(req.user);
+      const videoProgress = progressData.videos.find(p => p.video._id.equals(video._id));
+
+      return {
         _id: video._id,
         title: video.title,
         episodeNumber: video.episodeNumber,
         duration: video.duration,
-        isCompleted: false, // Would come from UserProgress model
-        hasAccess: video.isFree || !video.isLocked || req.user.isSubscribed
-      }))
+        isCompleted: videoProgress ? videoProgress.completed : false,
+        progress: videoProgress ? videoProgress.progress : 0,
+        progressPercentage: videoProgress ? videoProgress.progressPercentage : 0,
+        hasAccess,
+        lastWatchedAt: videoProgress ? videoProgress.lastWatchedAt : null
+      };
+    }));
+
+    const progress = {
+      topicId: topic._id,
+      totalVideos: progressData.totalVideos,
+      completedVideos: progressData.completedVideos,
+      progressPercentage: progressData.progressPercentage,
+      hasAccess: topic.hasAccess(req.user),
+      videos: videosWithProgress
     };
 
     res.status(200).json({
@@ -295,7 +318,13 @@ const getRelatedTopics = async (req, res) => {
   try {
     const { limit = 5 } = req.query;
 
-    const topic = await Topic.findById(req.params.id);
+    // Get topic with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const topic = await Topic.findOne({
+      _id: req.params.id,
+      ...packageFilter
+    });
+
     if (!topic || !topic.isActive) {
       return res.status(404).json({
         success: false,
@@ -303,8 +332,9 @@ const getRelatedTopics = async (req, res) => {
       });
     }
 
-    // Get topics from the same category (excluding current topic)
+    // Get topics from the same category (excluding current topic) with package filtering
     const relatedTopics = await Topic.find({
+      ...packageFilter,
       category: topic.category,
       _id: { $ne: topic._id },
       isActive: true

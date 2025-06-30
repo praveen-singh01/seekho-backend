@@ -93,20 +93,34 @@ userProgressSchema.pre('save', function(next) {
 });
 
 // Static method to get user's progress for a topic
-userProgressSchema.statics.getTopicProgress = async function(userId, topicId) {
+userProgressSchema.statics.getTopicProgress = async function(userId, topicId, packageId = null) {
   const Video = mongoose.model('Video');
-  const videos = await Video.find({ topic: topicId, isActive: true });
+
+  // Build query with package filtering
+  const videoQuery = { topic: topicId, isActive: true };
+  if (packageId) {
+    videoQuery.packageId = packageId;
+  }
+
+  const videos = await Video.find(videoQuery);
   const videoIds = videos.map(v => v._id);
-  
-  const progress = await this.find({ 
-    user: userId, 
-    video: { $in: videoIds } 
-  }).populate('video', 'title episodeNumber duration');
-  
+
+  // Build progress query with package filtering
+  const progressQuery = {
+    user: userId,
+    video: { $in: videoIds }
+  };
+  if (packageId) {
+    progressQuery.packageId = packageId;
+  }
+
+  const progress = await this.find(progressQuery)
+    .populate('video', 'title episodeNumber duration');
+
   const totalVideos = videos.length;
   const completedVideos = progress.filter(p => p.completed).length;
   const progressPercentage = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
-  
+
   return {
     totalVideos,
     completedVideos,

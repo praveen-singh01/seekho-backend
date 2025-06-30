@@ -51,7 +51,7 @@ class SubscriptionService {
   }
 
   // Create recurring subscription with Razorpay
-  static async createRecurringSubscription(userId, plan, customerData) {
+  static async createRecurringSubscription(userId, plan, customerData, packageId) {
     try {
       const { startDate, endDate, amount } = PaymentService.calculateSubscriptionDates(plan);
 
@@ -96,6 +96,7 @@ class SubscriptionService {
       }
 
       const subscription = await Subscription.create({
+        packageId, // Add package ID for multi-tenant support
         user: userId,
         plan,
         status: 'pending',
@@ -748,7 +749,7 @@ class SubscriptionService {
   }
 
   // Create auto-converting trial subscription (₹1 trial + auto-convert to ₹117/month)
-  static async createAutoConvertingTrialSubscription(userId, customerData) {
+  static async createAutoConvertingTrialSubscription(userId, customerData, packageId) {
     try {
       // Create Razorpay customer first
       const customerResult = await PaymentService.createRazorpayCustomer(customerData);
@@ -803,6 +804,7 @@ class SubscriptionService {
       mainSubscriptionEndDate.setDate(mainSubscriptionEndDate.getDate() + 30); // 30 days after trial
 
       const subscription = await Subscription.create({
+        packageId, // Add package ID for multi-tenant support
         user: userId,
         plan: 'trial', // Will auto-convert to 'monthly'
         status: 'pending', // Will be activated after payment

@@ -171,7 +171,7 @@ const createOrder = async (req, res) => {
     }
 
     // Check if user already has an active subscription
-    const existingSubscription = await SubscriptionService.getUserSubscription(req.user.id);
+    const existingSubscription = await SubscriptionService.getUserSubscription(req.user.id, req.packageId);
 
     if (existingSubscription.success && existingSubscription.isActive) {
       return res.status(400).json({
@@ -180,8 +180,9 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Clean up any pending subscriptions for this user
+    // Clean up any pending subscriptions for this user with package filtering
     await Subscription.deleteMany({
+      ...packageFilter,
       user: req.user.id,
       status: 'pending'
     });
@@ -227,7 +228,7 @@ const createOrder = async (req, res) => {
         phone: req.user.phone || ''
       };
 
-      result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData);
+      result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData, req.packageId);
 
       if (!result.success) {
         return res.status(400).json({
@@ -271,7 +272,7 @@ const createOrder = async (req, res) => {
         phone: req.user.phone || ''
       };
 
-      result = await SubscriptionService.createRecurringSubscription(req.user.id, plan, customerData);
+      result = await SubscriptionService.createRecurringSubscription(req.user.id, plan, customerData, req.packageId);
 
       if (!result.success) {
         return res.status(500).json({
@@ -553,13 +554,16 @@ const getHistory = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
 
-    const subscriptions = await Subscription.find({ user: req.user.id })
+    // Get package filter for multi-tenant support
+    const packageFilter = getPackageFilter(req.packageId);
+
+    const subscriptions = await Subscription.find({ ...packageFilter, user: req.user.id })
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .select('-signature -metadata');
 
-    const total = await Subscription.countDocuments({ user: req.user.id });
+    const total = await Subscription.countDocuments({ ...packageFilter, user: req.user.id });
 
     res.status(200).json({
       success: true,
@@ -586,7 +590,11 @@ const getHistory = async (req, res) => {
 // @access  Private
 const reactivateSubscription = async (req, res) => {
   try {
+    // Get package filter for multi-tenant support
+    const packageFilter = getPackageFilter(req.packageId);
+
     const subscription = await Subscription.findOne({
+      ...packageFilter,
       user: req.user.id,
       status: 'cancelled'
     }).sort({ createdAt: -1 });
@@ -793,7 +801,7 @@ const createTrialWithMandate = async (req, res) => {
       phone: phone || user.phone
     };
 
-    const result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData);
+    const result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData, req.packageId);
 
     if (!result.success) {
       return res.status(400).json({

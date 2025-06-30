@@ -65,7 +65,7 @@ const markNotificationsAsRead = async (req, res) => {
 // @access  Private
 const getUnreadCount = async (req, res) => {
   try {
-    const unreadCount = await Notification.getUnreadCount(req.user.id);
+    const unreadCount = await Notification.getUnreadCount(req.user.id, req.packageId);
 
     res.status(200).json({
       success: true,

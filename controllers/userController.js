@@ -286,15 +286,20 @@ const getUserStats = async (req, res) => {
     // Get bookmark count
     const bookmarkCount = await UserBookmark.getUserBookmarkCount(req.user.id);
 
-    // Get completed courses count (topics with 100% completion)
+    // Get completed courses count (topics with 100% completion) with package filtering
     const completedTopics = await UserProgress.aggregate([
-      { $match: { user: req.user._id } },
+      { $match: { ...packageFilter, user: req.user._id } },
       { $group: { _id: '$topic', completedVideos: { $sum: { $cond: ['$completed', 1, 0] } } } },
       {
         $lookup: {
           from: 'videos',
-          localField: '_id',
-          foreignField: 'topic',
+          let: { topicId: '$_id' },
+          pipeline: [
+            { $match: {
+              $expr: { $eq: ['$topic', '$$topicId'] },
+              ...packageFilter
+            }}
+          ],
           as: 'topicVideos'
         }
       },

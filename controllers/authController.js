@@ -38,9 +38,21 @@ const googleCallback = (req, res, next) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
+    // Get user with package filtering for security
+    const packageFilter = getPackageFilter(req.packageId);
+    const user = await User.findOne({
+      _id: req.user.id,
+      ...packageFilter
+    })
       .populate('subscription')
       .select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -150,9 +162,14 @@ const getUserStats = async (req, res) => {
     const Video = require('../models/Video');
     const Subscription = require('../models/Subscription');
 
-    // Get user's subscription history
-    const subscriptions = await Subscription.find({ user: req.user.id })
-      .sort({ createdAt: -1 });
+    // Get package filter for multi-tenant support
+    const packageFilter = getPackageFilter(req.packageId);
+
+    // Get user's subscription history with package filtering
+    const subscriptions = await Subscription.find({
+      ...packageFilter,
+      user: req.user.id
+    }).sort({ createdAt: -1 });
 
     // Get video watch statistics (this would require a separate model for tracking)
     // For now, we'll return basic stats
