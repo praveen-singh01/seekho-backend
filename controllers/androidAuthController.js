@@ -3,7 +3,25 @@ const { generateToken } = require('../middleware/auth');
 const User = require('../models/User');
 const { getPackageFilter } = require('../config/packages');
 
-// Initialize Google OAuth client for Android
+// Initialize Google OAuth clients for different Android apps
+const getAndroidClientForPackage = (packageId) => {
+  let clientId;
+
+  switch (packageId) {
+    case 'com.gumbo.learning':
+      clientId = process.env.SEEKHO_ANDROID_CLIENT_ID || process.env.ANDROID_CLIENT_ID; // Backward compatibility
+      break;
+    case 'com.gumbo.english':
+      clientId = process.env.BOLO_ANDROID_CLIENT_ID;
+      break;
+    default:
+      clientId = process.env.ANDROID_CLIENT_ID; // Fallback
+  }
+
+  return clientId ? new OAuth2Client(clientId) : null;
+};
+
+// Legacy client for backward compatibility
 const androidClient = process.env.ANDROID_CLIENT_ID ? new OAuth2Client(process.env.ANDROID_CLIENT_ID) : null;
 
 // @desc    Verify Google token from Android app
@@ -11,22 +29,18 @@ const androidClient = process.env.ANDROID_CLIENT_ID ? new OAuth2Client(process.e
 // @access  Public
 const verifyAndroidGoogleToken = async (req, res) => {
   try {
-    // Enhanced environment validation
-    if (!process.env.ANDROID_CLIENT_ID) {
-      console.error('❌ ANDROID_CLIENT_ID not set in environment variables');
-      return res.status(500).json({
-        success: false,
-        message: 'Android OAuth not configured. Please set ANDROID_CLIENT_ID in environment variables.',
-        error: 'MISSING_ANDROID_CLIENT_ID'
-      });
-    }
+    // Get package-specific Android client
+    const packageSpecificClient = getAndroidClientForPackage(req.packageId);
 
-    if (!androidClient) {
-      console.error('❌ Android OAuth client not initialized');
+    // Enhanced environment validation
+    if (!packageSpecificClient) {
+      const clientIdEnvVar = req.packageId === 'com.gumbo.english' ? 'BOLO_ANDROID_CLIENT_ID' : 'SEEKHO_ANDROID_CLIENT_ID or ANDROID_CLIENT_ID';
+      console.error(`❌ Android client ID not set for package ${req.packageId}`);
       return res.status(500).json({
         success: false,
-        message: 'Android OAuth client not initialized.',
-        error: 'CLIENT_NOT_INITIALIZED'
+        message: `Android OAuth not configured for ${req.packageId}. Please set ${clientIdEnvVar} in environment variables.`,
+        error: 'MISSING_ANDROID_CLIENT_ID',
+        packageId: req.packageId
       });
     }
 
@@ -42,7 +56,8 @@ const verifyAndroidGoogleToken = async (req, res) => {
     }
 
     console.log('🔍 Processing Google ID token for Android...');
-    console.log('📱 Client ID:', process.env.ANDROID_CLIENT_ID);
+    console.log('📱 Package ID:', req.packageId);
+    console.log('📱 Client ID:', packageSpecificClient.clientId || 'Not available');
     console.log('🎫 Token length:', idToken.length);
 
     let payload;
@@ -74,10 +89,10 @@ const verifyAndroidGoogleToken = async (req, res) => {
     } else {
       console.log('🔒 Verifying token with Google...');
 
-      // Verify the token with Google (production mode)
-      const ticket = await androidClient.verifyIdToken({
+      // Verify the token with Google (production mode) using package-specific client
+      const ticket = await packageSpecificClient.verifyIdToken({
         idToken: idToken,
-        audience: process.env.ANDROID_CLIENT_ID
+        audience: packageSpecificClient.clientId
       });
 
       payload = ticket.getPayload();
@@ -280,11 +295,33 @@ const refreshToken = async (req, res) => {
 // @access  Public
 const getAndroidConfig = async (req, res) => {
   try {
+    // Get package-specific configuration
+    let androidClientId, packageName, appName;
+
+    switch (req.packageId) {
+      case 'com.gumbo.learning':
+        androidClientId = process.env.SEEKHO_ANDROID_CLIENT_ID || process.env.ANDROID_CLIENT_ID;
+        packageName = 'com.gumbo.learning';
+        appName = 'Seekho';
+        break;
+      case 'com.gumbo.english':
+        androidClientId = process.env.BOLO_ANDROID_CLIENT_ID;
+        packageName = 'com.gumbo.english';
+        appName = 'Bolo';
+        break;
+      default:
+        androidClientId = process.env.ANDROID_CLIENT_ID;
+        packageName = process.env.ANDROID_PACKAGE_NAME || 'com.gumbo.learning';
+        appName = 'Seekho';
+    }
+
     res.status(200).json({
       success: true,
       data: {
-        androidClientId: process.env.ANDROID_CLIENT_ID,
-        packageName: process.env.ANDROID_PACKAGE_NAME,
+        androidClientId,
+        packageName,
+        appName,
+        packageId: req.packageId,
         deepLink: process.env.ANDROID_DEEP_LINK,
         subscriptionPlans: {
           trial: {
