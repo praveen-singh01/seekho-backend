@@ -24,7 +24,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     index: true,
     match: [
@@ -35,7 +34,6 @@ const userSchema = new mongoose.Schema({
   username: {
     type: String,
     sparse: true, // Allow multiple null values
-    unique: true,
     lowercase: true,
     index: true,
     minlength: [3, 'Username must be at least 3 characters'],
