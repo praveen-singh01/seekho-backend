@@ -332,11 +332,44 @@ const verifyPayment = async (req, res) => {
           signature: razorpay_signature
         }
       );
+    } else if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+      // Handle one-time payment (single payment without subscription)
+
+      // Verify one-time payment signature
+      const isValidSignature = PaymentService.verifyRazorpaySignature(
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      );
+
+      if (!isValidSignature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature'
+        });
+      }
+
+      // Get package ID from user's app context
+      const packageId = req.user.packageId || 'com.gumbo.learning'; // Default to Seekho
+
+      // Create one-time subscription
+      subscriptionResult = await SubscriptionService.createOneTimeSubscription(
+        req.user.id,
+        plan,
+        {
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+          signature: razorpay_signature,
+          email: req.user.email,
+          phone: req.user.phone
+        },
+        packageId
+      );
     } else {
-      // Only subscription payments are supported (no one-time payments)
+      // Missing required payment details
       return res.status(400).json({
         success: false,
-        message: 'Only subscription payments are supported. Please use monthly or yearly subscription.'
+        message: 'Missing required payment details. Please provide either subscription details (razorpay_subscription_id) or order details (razorpay_order_id) along with payment_id and signature.'
       });
     }
 

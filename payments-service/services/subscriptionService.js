@@ -498,6 +498,9 @@ class SubscriptionService {
         case 'payment.failed':
           return await this.handlePaymentFailed(payload);
 
+        case 'payment.captured':
+          return await this.handlePaymentCaptured(payload);
+
         default:
           console.log(`Unhandled webhook event: ${event}`);
           return { success: true, message: 'Event ignored' };
@@ -701,6 +704,63 @@ class SubscriptionService {
       return { success: true, message: `Payment failed for subscription: ${subscriptionId}` };
     } catch (error) {
       console.error('Handle payment failed error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Handle payment captured webhook (for one-time payments)
+  static async handlePaymentCaptured(payload) {
+    try {
+      // Handle different payload structures
+      let paymentId;
+      let orderId;
+      let amount;
+
+      if (payload.payment && payload.payment.entity) {
+        const payment = payload.payment.entity;
+        paymentId = payment.id;
+        orderId = payment.order_id;
+        amount = payment.amount;
+      } else if (payload.entity) {
+        paymentId = payload.entity.id;
+        orderId = payload.entity.order_id;
+        amount = payload.entity.amount;
+      } else {
+        console.error('Unknown payload structure for payment.captured:', payload);
+        return { success: false, error: 'Invalid payload structure' };
+      }
+
+      console.log(`Looking for one-time subscription for captured payment. Order ID: ${orderId}, Payment ID: ${paymentId}`);
+
+      // Find subscription by order ID (for one-time payments)
+      const subscription = await Subscription.findOne({
+        orderId: orderId,
+        subscriptionType: 'one-time',
+        status: { $in: ['pending', 'active'] }
+      });
+
+      if (!subscription) {
+        console.log(`No one-time subscription found for order: ${orderId}. This might be a recurring subscription payment.`);
+        return { success: true, message: `No one-time subscription found for order: ${orderId}` };
+      }
+
+      // Update subscription with payment details
+      subscription.paymentId = paymentId;
+      subscription.status = 'active';
+      subscription.lastSuccessfulPayment = new Date();
+
+      // Add webhook event to metadata
+      if (!subscription.metadata.webhookEvents) {
+        subscription.metadata.webhookEvents = [];
+      }
+      subscription.metadata.webhookEvents.push(`payment.captured:${new Date().toISOString()}`);
+
+      await subscription.save();
+
+      console.log(`One-time subscription ${subscription._id} activated via payment.captured webhook`);
+      return { success: true, message: `One-time subscription activated: ${subscription._id}` };
+    } catch (error) {
+      console.error('Handle payment captured error:', error);
       return { success: false, error: error.message };
     }
   }
