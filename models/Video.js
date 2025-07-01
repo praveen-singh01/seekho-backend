@@ -125,6 +125,11 @@ const videoSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Virtual field for isPremium (for frontend compatibility)
+videoSchema.virtual('isPremium').get(function() {
+  return this.isLocked && !this.isFree;
+});
+
 // Virtual for formatted duration
 videoSchema.virtual('formattedDuration').get(function() {
   const hours = Math.floor(this.duration / 3600);
