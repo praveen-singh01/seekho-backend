@@ -132,7 +132,8 @@ const VideosPage = () => {
         duration: video.duration || 0,
         episodeNumber: video.episodeNumber || 1,
         isActive: video.isActive !== false,
-        isPremium: video.isPremium || false,
+        // Map Video model fields to isPremium: premium videos are locked and not free
+        isPremium: video.isLocked && !video.isFree,
       });
     } else {
       setEditingVideo(null);
@@ -391,8 +392,8 @@ const VideosPage = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={video.isPremium ? 'Premium' : 'Free'}
-                        color={video.isPremium ? 'warning' : 'success'}
+                        label={(video.isLocked && !video.isFree) ? 'Premium' : 'Free'}
+                        color={(video.isLocked && !video.isFree) ? 'warning' : 'success'}
                         size="small"
                       />
                     </TableCell>

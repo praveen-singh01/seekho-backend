@@ -368,10 +368,16 @@ const updateTopic = async (req, res) => {
 // @access  Private/Admin
 const createVideo = async (req, res) => {
   try {
+    // Handle isPremium field mapping to Video model fields
+    const { isPremium, ...otherData } = req.body;
+
     const videoData = {
-      ...req.body,
+      ...otherData,
       packageId: req.packageId, // Add package ID from middleware
-      uploadedBy: req.user.id
+      uploadedBy: req.user.id,
+      // Map isPremium to Video model fields
+      isLocked: isPremium !== undefined ? isPremium : true, // Premium videos are locked
+      isFree: isPremium !== undefined ? !isPremium : false  // Premium videos are not free
     };
 
     const video = await Video.create(videoData);
@@ -409,8 +415,17 @@ const createVideo = async (req, res) => {
 // @access  Private/Admin
 const updateVideo = async (req, res) => {
   try {
-    // Remove packageId from update data to prevent modification
-    const { packageId, ...updateData } = req.body;
+    // Remove packageId from update data to prevent modification and handle isPremium mapping
+    const { packageId, isPremium, ...otherData } = req.body;
+
+    const updateData = {
+      ...otherData,
+      // Map isPremium to Video model fields if provided
+      ...(isPremium !== undefined && {
+        isLocked: isPremium,     // Premium videos are locked
+        isFree: !isPremium       // Premium videos are not free
+      })
+    };
 
     const video = await Video.findByIdAndUpdate(
       req.params.id,

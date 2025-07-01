@@ -10,7 +10,6 @@ const { getPackageFilter } = require('../config/packages');
 const getPlans = async (req, res) => {
   try {
     let user = null;
-    let isTrialEligible = true;
     let activeSubscription = null;
     let hasEverPurchased = false;
 
@@ -21,8 +20,6 @@ const getPlans = async (req, res) => {
         const packageFilter = getPackageFilter(req.packageId);
         user = await User.findOne({ _id: req.user.id, ...packageFilter });
         if (user) {
-          isTrialEligible = user.isTrialEligible();
-
           // Get user's active subscription with package filter
           const subscriptionResult = await SubscriptionService.getUserSubscription(req.user.id, req.packageId);
           if (subscriptionResult.success && subscriptionResult.subscription) {
@@ -46,7 +43,7 @@ const getPlans = async (req, res) => {
     const monthlyPackageId = "05bd18be-6d18-421b-898e-8148e185f0ce";
     const yearlyPackageId = "a7b7e439-56b1-7e2b-b5a8-9820d3b54136";
 
-    // Build subscription list
+    // Build subscription list - removed free trial, only monthly and yearly
     const subscriptionList = [
       {
         packageId: monthlyPackageId,
@@ -54,8 +51,8 @@ const getPlans = async (req, res) => {
         price: 99, // Base price without GST
         priceAfterTax: 117, // Price with 18% GST
         strikePrice: 0, // No strike price for monthly
-        freeTrial: isTrialEligible,
-        trialPrice: isTrialEligible ? 1 : 0, // ₹1 if eligible, ₹0 if not
+        freeTrial: false, // No free trial
+        trialPrice: 0, // No trial price
         planId: process.env.RAZORPAY_MONTHLY_PLAN_ID,
         validityInDays: 30
       },
@@ -65,8 +62,8 @@ const getPlans = async (req, res) => {
         price: 499, // Base price without GST
         priceAfterTax: 587, // Price with 18% GST (499 + 88)
         strikePrice: 0, // No strike price for yearly
-        freeTrial: false, // Yearly plan doesn't have trial
-        trialPrice: 0,
+        freeTrial: false, // No free trial
+        trialPrice: 0, // No trial price
         planId: process.env.RAZORPAY_YEARLY_PLAN_ID,
         validityInDays: 365
       }
@@ -82,9 +79,7 @@ const getPlans = async (req, res) => {
         premiumUser = true;
         premiumTill = Math.floor(activeSubscription.endDate.getTime() / 1000); // Unix timestamp
 
-        if (activeSubscription.plan === 'trial') {
-          subscriptionStatus = "TRIAL_ACTIVE";
-        } else if (activeSubscription.autoRenew) {
+        if (activeSubscription.autoRenew) {
           subscriptionStatus = "ACTIVE_RECURRING";
         } else {
           subscriptionStatus = "ACTIVE_NON_RECURRING";
@@ -146,28 +141,15 @@ const createOrder = async (req, res) => {
       recurring = true;
     }
 
-    // Get user for trial eligibility check with package validation
+    // Validate package ID
     const packageFilter = getPackageFilter(req.packageId);
-    const user = await User.findOne({ _id: req.user.id, ...packageFilter });
 
-    // For trial, frontend might send the monthly plan ID but with freeTrial=true
-    // We need to check if this should be treated as trial based on user eligibility
-    if (plan === 'monthly' && user.isTrialEligible()) {
-      // If user is trial eligible and selecting monthly, treat as trial
-      plan = 'trial';
-    }
-
-    // Check trial eligibility
-    if (plan === 'trial') {
-      if (!user.isTrialEligible()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Trial already used. Please choose monthly subscription.',
-          showMonthlyOnly: true,
-          monthlyPrice: 117,
-          monthlyPriceInPaise: 11700
-        });
-      }
+    // Only allow monthly and yearly plans (no trial)
+    if (!['monthly', 'yearly'].includes(plan)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid subscription plan. Only monthly and yearly plans are available.'
+      });
     }
 
     // Check if user already has an active subscription
@@ -220,51 +202,16 @@ const createOrder = async (req, res) => {
           }
         }
       });
-    } else if (plan === 'trial') {
-      // Create trial subscription with addon approach (₹1 immediate + ₹117 after 5 days)
-      const customerData = {
-        name: req.user.name,
-        email: req.user.email,
-        phone: req.user.phone || ''
-      };
-
-      result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData, req.packageId);
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.error
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          // Standardized fields for frontend
-          subscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID for payment
-          orderId: null, // No order ID for subscription-based payments
-          amount: result.trialAmount, // ₹1 charged immediately via addon
-          mandateAmount: result.mainAmount, // ₹117 UPI mandate for future billing
-          currency: 'INR',
-          plan: plan,
-          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-          type: 'auto-converting-trial', // Trial with auto-conversion
-
-          // Additional details
-          subscriptionDetails: {
-            dbSubscriptionId: result.subscription._id, // Our database subscription ID
-            razorpaySubscriptionId: result.razorpaySubscription.id, // Razorpay subscription ID
-            customerId: result.subscription.razorpayCustomerId,
-            trialPeriod: result.trialPeriod,
-            trialAmount: result.trialAmount,
-            monthlyAmount: result.mainAmount,
-            autoConversion: result.autoConversion,
-            mainBillingStartsAt: result.mainBillingStartsAt,
-            nextBillingDate: result.subscription.nextBillingDate
-          }
-        }
-      });
     } else {
+      // Invalid plan type
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid subscription plan. Only monthly and yearly plans are available.'
+      });
+    }
+
+    // For monthly and yearly, create recurring subscription
+    if (['monthly', 'yearly'].includes(plan)) {
       // For monthly and yearly, create recurring subscription (recurring: true)
       const customerData = {
         name: req.user.name,
@@ -320,8 +267,7 @@ const verifyPayment = async (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       razorpay_subscription_id,
-      plan,
-      recurring
+      plan
     } = req.body;
 
     if (!plan) {
@@ -342,12 +288,12 @@ const verifyPayment = async (req, res) => {
       plan = planMapping[plan];
     }
 
-    // For trial, check if this should be treated as trial
-    if (plan === 'monthly') {
-      const user = await User.findById(req.user.id);
-      if (user.isTrialEligible()) {
-        plan = 'trial';
-      }
+    // Only allow monthly and yearly plans
+    if (!['monthly', 'yearly'].includes(plan)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid subscription plan. Only monthly and yearly plans are available.'
+      });
     }
 
     let subscriptionResult;
@@ -376,86 +322,22 @@ const verifyPayment = async (req, res) => {
         });
       }
 
-      if (plan === 'trial') {
-        // Handle trial subscription activation
-        subscriptionResult = await SubscriptionService.activateTrialSubscription(
-          req.user.id,
-          {
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
-            signature: razorpay_signature
-          },
-          req.packageId
-        );
-
-        // Mark trial as used if activation is successful
-        if (subscriptionResult.success) {
-          const packageFilter = getPackageFilter(req.packageId);
-          const user = await User.findOne({ _id: req.user.id, ...packageFilter });
-          await user.markTrialUsed();
-        }
-      } else {
-        // Handle regular recurring subscription payment
-        subscriptionResult = await SubscriptionService.activateRecurringSubscription(
-          req.user.id,
-          razorpay_subscription_id,
-          {
-            paymentId: razorpay_payment_id,
-            orderId: razorpay_order_id,
-            signature: razorpay_signature
-          }
-        );
-      }
-    } else {
-      // Handle one-time payment (trial)
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({
-          success: false,
-          message: 'Missing required payment details for one-time payment'
-        });
-      }
-
-      // Verify payment signature for one-time payments
-      const isValidSignature = PaymentService.verifyRazorpaySignature(
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature
-      );
-
-      if (!isValidSignature) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid payment signature'
-        });
-      }
-
-      // Get payment details from Razorpay
-      const paymentResult = await PaymentService.getPaymentDetails(razorpay_payment_id);
-
-      if (!paymentResult.success) {
-        return res.status(400).json({
-          success: false,
-          message: 'Payment verification failed'
-        });
-      }
-
-      // Create subscription (one-time payment for trial)
-      subscriptionResult = await SubscriptionService.createOneTimeSubscription(
+      // Handle regular recurring subscription payment
+      subscriptionResult = await SubscriptionService.activateRecurringSubscription(
         req.user.id,
-        plan,
+        razorpay_subscription_id,
         {
           paymentId: razorpay_payment_id,
           orderId: razorpay_order_id,
-          signature: razorpay_signature,
-          email: req.user.email
+          signature: razorpay_signature
         }
       );
-
-      // Mark trial as used if this is a trial subscription
-      if (plan === 'trial' && subscriptionResult.success) {
-        const user = await User.findById(req.user.id);
-        await user.markTrialUsed();
-      }
+    } else {
+      // Only subscription payments are supported (no one-time payments)
+      return res.status(400).json({
+        success: false,
+        message: 'Only subscription payments are supported. Please use monthly or yearly subscription.'
+      });
     }
 
     if (!subscriptionResult.success) {
@@ -634,219 +516,55 @@ const reactivateSubscription = async (req, res) => {
   }
 };
 
-// @desc    Convert trial to monthly subscription
+// @desc    Convert trial to monthly subscription (DISABLED)
 // @route   POST /api/subscriptions/convert-trial
 // @access  Private
 const convertTrial = async (req, res) => {
-  try {
-    const { subscriptionId } = req.body;
-
-    if (!subscriptionId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Subscription ID is required'
-      });
-    }
-
-    const result = await SubscriptionService.handleTrialConversion(subscriptionId);
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.error
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        orderId: result.order.id,
-        amount: result.order.amount,
-        currency: result.order.currency,
-        conversionAmount: result.conversionAmount,
-        razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-        subscription: result.subscription
-      }
-    });
-  } catch (error) {
-    console.error('Convert trial error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
+  return res.status(400).json({
+    success: false,
+    message: 'Trial subscriptions are no longer available. Please choose monthly or yearly subscription.'
+  });
 };
 
-// @desc    Complete trial conversion after payment
+// @desc    Complete trial conversion after payment (DISABLED)
 // @route   POST /api/subscriptions/complete-conversion
 // @access  Private
 const completeTrialConversion = async (req, res) => {
-  try {
-    const {
-      subscriptionId,
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    } = req.body;
-
-    if (!subscriptionId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required payment details'
-      });
-    }
-
-    // Verify payment signature
-    const isValidSignature = PaymentService.verifyRazorpaySignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    );
-
-    if (!isValidSignature) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      });
-    }
-
-    const result = await SubscriptionService.completeTrialConversion(subscriptionId, {
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      signature: razorpay_signature
-    });
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.error
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Trial converted to monthly subscription successfully',
-      data: result.subscription
-    });
-  } catch (error) {
-    console.error('Complete trial conversion error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
+  return res.status(400).json({
+    success: false,
+    message: 'Trial subscriptions are no longer available. Please choose monthly or yearly subscription.'
+  });
 };
 
-// @desc    Check trial eligibility
+// @desc    Check trial eligibility (DISABLED)
 // @route   GET /api/subscriptions/trial-eligibility
 // @access  Private
 const checkTrialEligibility = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const isEligible = user.isTrialEligible();
-
-    res.status(200).json({
-      success: true,
-      data: {
-        isTrialEligible: isEligible,
-        hasUsedTrial: user.hasUsedTrial,
-        trialUsedAt: user.trialUsedAt,
-        alternativeOptions: !isEligible ? {
-          monthlyPrice: 117,
-          monthlyPriceInPaise: 11700,
-          description: '₹99 + 18% GST = ₹117/month'
-        } : null
+  return res.status(200).json({
+    success: true,
+    data: {
+      isTrialEligible: false,
+      hasUsedTrial: true,
+      trialUsedAt: new Date(),
+      alternativeOptions: {
+        monthlyPrice: 117,
+        monthlyPriceInPaise: 11700,
+        yearlyPrice: 587,
+        yearlyPriceInPaise: 58700,
+        description: 'Choose monthly (₹117/month) or yearly (₹587/year) subscription'
       }
-    });
-  } catch (error) {
-    console.error('Check trial eligibility error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
+    }
+  });
 };
 
-// @desc    Create trial subscription with UPI mandate
+// @desc    Create trial subscription with UPI mandate (DISABLED)
 // @route   POST /api/subscriptions/create-trial-with-mandate
 // @access  Private
 const createTrialWithMandate = async (req, res) => {
-  try {
-    const { name, email, phone } = req.body;
-
-    // Check trial eligibility
-    const user = await User.findById(req.user.id);
-    if (!user.isTrialEligible()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Trial already used. Please choose monthly subscription.',
-        showMonthlyOnly: true,
-        monthlyPrice: 117,
-        monthlyPriceInPaise: 11700
-      });
-    }
-
-    // Check if user already has an active subscription
-    const existingSubscription = await user.getActiveSubscription();
-    if (existingSubscription) {
-      return res.status(400).json({
-        success: false,
-        message: 'You already have an active subscription'
-      });
-    }
-
-    const customerData = {
-      name: name || user.name,
-      email: email || user.email,
-      phone: phone || user.phone
-    };
-
-    const result = await SubscriptionService.createAutoConvertingTrialSubscription(req.user.id, customerData, req.packageId);
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: result.error
-      });
-    }
-
-    // Mark trial as used
-    await user.markTrialUsed();
-
-    res.status(200).json({
-      success: true,
-      message: 'Auto-converting trial subscription created successfully',
-      data: {
-        subscriptionId: result.subscription._id,
-        razorpaySubscriptionId: result.razorpaySubscription.id,
-        trialAmount: result.trialAmount, // ₹1 in paise
-        mainAmount: result.mainAmount, // ₹117 in paise
-        trialPeriod: result.trialPeriod, // 5 days
-        autoConversion: result.autoConversion,
-        mainBillingStartsAt: result.mainBillingStartsAt,
-        description: '₹1 for 5 days trial, then ₹117/month auto-billing',
-        razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-        // For custom integration (recommended)
-        subscriptionDetails: {
-          customerId: result.subscription.razorpayCustomerId,
-          planId: result.subscription.razorpayPlanId,
-          totalCount: 120,
-          notes: {
-            packageName: "com.gumbo.learning",
-            AppNAme: "seekho",
-            // trialPeriod: 5,
-            // autoConvert: true
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Create trial with mandate error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
+  return res.status(400).json({
+    success: false,
+    message: 'Trial subscriptions are no longer available. Please choose monthly or yearly subscription.'
+  });
 };
 
 module.exports = {
