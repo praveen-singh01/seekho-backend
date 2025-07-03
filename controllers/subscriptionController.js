@@ -202,16 +202,7 @@ const createOrder = async (req, res) => {
           }
         }
       });
-    } else {
-      // Invalid plan type
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid subscription plan. Only monthly and yearly plans are available.'
-      });
-    }
-
-    // For monthly and yearly, create recurring subscription
-    if (['monthly', 'yearly'].includes(plan)) {
+    } else if (['monthly', 'yearly'].includes(plan)) {
       // For monthly and yearly, create recurring subscription (recurring: true)
       const customerData = {
         name: req.user.name,
