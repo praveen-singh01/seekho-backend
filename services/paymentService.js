@@ -1,5 +1,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const paymentMicroserviceClient = require('./paymentMicroserviceClient');
+const { isMicroserviceEnabled, getPlanConfig } = require('../config/paymentConfig');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -453,6 +455,173 @@ class PaymentService {
         error: error.message
       };
     }
+  }
+
+  // ===== PAYMENT MICROSERVICE INTEGRATION METHODS =====
+
+  /**
+   * Create subscription via Payment Microservice
+   * @param {string} userId - User ID
+   * @param {string} packageId - Package ID (com.gumbo.learning or com.gumbo.english)
+   * @param {string} plan - Plan type (monthly, yearly)
+   * @param {Object} paymentContext - Additional payment context
+   * @returns {Promise<Object>} Subscription result
+   */
+  static async createMicroserviceSubscription(userId, packageId, plan, paymentContext = {}) {
+    try {
+      if (!isMicroserviceEnabled()) {
+        throw new Error('Payment microservice is not enabled');
+      }
+
+      const planConfig = getPlanConfig(packageId, plan);
+
+      const subscriptionResponse = await paymentMicroserviceClient.createSubscription(
+        userId,
+        packageId,
+        planConfig.planId,
+        {
+          subscriptionType: 'premium',
+          billingCycle: plan,
+          ...paymentContext
+        }
+      );
+
+      return {
+        success: true,
+        subscription: subscriptionResponse.data,
+        source: 'microservice'
+      };
+    } catch (error) {
+      console.error('Microservice subscription creation error:', error);
+      return {
+        success: false,
+        error: error.message,
+        source: 'microservice'
+      };
+    }
+  }
+
+  /**
+   * Create order via Payment Microservice
+   * @param {string} userId - User ID
+   * @param {string} packageId - Package ID
+   * @param {string} plan - Plan type
+   * @param {Object} paymentContext - Additional payment context
+   * @returns {Promise<Object>} Order result
+   */
+  static async createMicroserviceOrder(userId, packageId, plan, paymentContext = {}) {
+    try {
+      if (!isMicroserviceEnabled()) {
+        throw new Error('Payment microservice is not enabled');
+      }
+
+      const planConfig = getPlanConfig(packageId, plan);
+
+      const orderResponse = await paymentMicroserviceClient.createOrder(
+        userId,
+        packageId,
+        planConfig.amount,
+        planConfig.currency,
+        {
+          orderId: `order_${plan}_${Date.now()}`,
+          productId: `${packageId}_${plan}`,
+          description: `${plan} subscription for ${packageId}`,
+          ...paymentContext
+        }
+      );
+
+      return {
+        success: true,
+        order: orderResponse.data,
+        source: 'microservice'
+      };
+    } catch (error) {
+      console.error('Microservice order creation error:', error);
+      return {
+        success: false,
+        error: error.message,
+        source: 'microservice'
+      };
+    }
+  }
+
+  /**
+   * Get user subscriptions via Payment Microservice
+   * @param {string} userId - User ID
+   * @param {string} packageId - Package ID
+   * @param {number} page - Page number
+   * @param {number} limit - Items per page
+   * @returns {Promise<Object>} Subscriptions result
+   */
+  static async getMicroserviceUserSubscriptions(userId, packageId, page = 1, limit = 10) {
+    try {
+      if (!isMicroserviceEnabled()) {
+        throw new Error('Payment microservice is not enabled');
+      }
+
+      const subscriptionsResponse = await paymentMicroserviceClient.getUserSubscriptions(
+        userId,
+        packageId,
+        page,
+        limit
+      );
+
+      return {
+        success: true,
+        subscriptions: subscriptionsResponse.data.subscriptions,
+        total: subscriptionsResponse.data.total,
+        source: 'microservice'
+      };
+    } catch (error) {
+      console.error('Microservice get subscriptions error:', error);
+      return {
+        success: false,
+        error: error.message,
+        source: 'microservice'
+      };
+    }
+  }
+
+  /**
+   * Cancel subscription via Payment Microservice
+   * @param {string} userId - User ID
+   * @param {string} packageId - Package ID
+   * @param {string} subscriptionId - Subscription ID
+   * @returns {Promise<Object>} Cancellation result
+   */
+  static async cancelMicroserviceSubscription(userId, packageId, subscriptionId) {
+    try {
+      if (!isMicroserviceEnabled()) {
+        throw new Error('Payment microservice is not enabled');
+      }
+
+      const cancelResponse = await paymentMicroserviceClient.cancelSubscription(
+        userId,
+        packageId,
+        subscriptionId
+      );
+
+      return {
+        success: true,
+        subscription: cancelResponse.data,
+        source: 'microservice'
+      };
+    } catch (error) {
+      console.error('Microservice cancel subscription error:', error);
+      return {
+        success: false,
+        error: error.message,
+        source: 'microservice'
+      };
+    }
+  }
+
+  /**
+   * Check if microservice is enabled and available
+   * @returns {boolean} Whether microservice is enabled
+   */
+  static isMicroserviceEnabled() {
+    return isMicroserviceEnabled();
   }
 }
 

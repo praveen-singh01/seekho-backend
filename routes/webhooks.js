@@ -1,5 +1,11 @@
 const express = require('express');
-const { handleRazorpayWebhook, testWebhook, debugSubscriptions } = require('../controllers/webhookController');
+const {
+  handleRazorpayWebhook,
+  testWebhook,
+  debugSubscriptions,
+  handlePaymentCallbackLearning,
+  handlePaymentCallbackEnglish
+} = require('../controllers/webhookController');
 
 const router = express.Router();
 
@@ -17,5 +23,17 @@ router.get('/test', testWebhook);
 // @desc    Debug subscriptions
 // @access  Public
 router.get('/debug-subscriptions', debugSubscriptions);
+
+// ===== PAYMENT MICROSERVICE CALLBACK ROUTES =====
+
+// @route   POST /api/payment/callback/learning
+// @desc    Handle Payment Microservice callback for Seekho (com.gumbo.learning)
+// @access  Public (verified by microservice)
+router.post('/payment/callback/learning', handlePaymentCallbackLearning);
+
+// @route   POST /api/payment/callback/english
+// @desc    Handle Payment Microservice callback for Bolo (com.gumbo.english)
+// @access  Public (verified by microservice)
+router.post('/payment/callback/english', handlePaymentCallbackEnglish);
 
 module.exports = router;

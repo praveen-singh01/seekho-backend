@@ -1,5 +1,8 @@
 const crypto = require('crypto');
 const SubscriptionService = require('../services/subscriptionService');
+const Subscription = require('../models/Subscription');
+const User = require('../models/User');
+const { getPackageFilter } = require('../config/packages');
 
 // Helper function to check if webhook should be ignored
 const checkIfShouldIgnoreWebhook = (payload) => {
@@ -275,8 +278,220 @@ const debugPricing = async (req, res) => {
   }
 };
 
+// ===== PAYMENT MICROSERVICE CALLBACK HANDLERS =====
+
+/**
+ * Handle Payment Microservice callback for Seekho (com.gumbo.learning)
+ * @route POST /api/payment/callback/learning
+ */
+const handlePaymentCallbackLearning = async (req, res) => {
+  try {
+    console.log('Payment callback received for Seekho (com.gumbo.learning):', req.body);
+
+    const { event, userId, sourceApp, data } = req.body;
+
+    // Verify sourceApp matches expected package
+    if (sourceApp !== 'com.gumbo.learning') {
+      console.warn('Package ID mismatch in callback:', { expected: 'com.gumbo.learning', received: sourceApp });
+      return res.status(400).json({
+        success: false,
+        message: 'Package ID mismatch'
+      });
+    }
+
+    const packageFilter = getPackageFilter('com.gumbo.learning');
+
+    // Handle different event types
+    switch (event) {
+      case 'payment.captured':
+      case 'subscription.activated':
+      case 'subscription.charged':
+        await handlePaymentSuccess(userId, 'com.gumbo.learning', data, packageFilter);
+        break;
+
+      case 'payment.failed':
+      case 'subscription.halted':
+        await handlePaymentFailure(userId, 'com.gumbo.learning', data, packageFilter);
+        break;
+
+      case 'subscription.cancelled':
+        await handleSubscriptionCancellation(userId, 'com.gumbo.learning', data, packageFilter);
+        break;
+
+      default:
+        console.log('Unhandled event type:', event);
+    }
+
+    res.json({ success: true, message: 'Callback processed successfully' });
+  } catch (error) {
+    console.error('Payment callback error (learning):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Callback processing failed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Handle Payment Microservice callback for Bolo (com.gumbo.english)
+ * @route POST /api/payment/callback/english
+ */
+const handlePaymentCallbackEnglish = async (req, res) => {
+  try {
+    console.log('Payment callback received for Bolo (com.gumbo.english):', req.body);
+
+    const { event, userId, sourceApp, data } = req.body;
+
+    // Verify sourceApp matches expected package
+    if (sourceApp !== 'com.gumbo.english') {
+      console.warn('Package ID mismatch in callback:', { expected: 'com.gumbo.english', received: sourceApp });
+      return res.status(400).json({
+        success: false,
+        message: 'Package ID mismatch'
+      });
+    }
+
+    const packageFilter = getPackageFilter('com.gumbo.english');
+
+    // Handle different event types
+    switch (event) {
+      case 'payment.captured':
+      case 'subscription.activated':
+      case 'subscription.charged':
+        await handlePaymentSuccess(userId, 'com.gumbo.english', data, packageFilter);
+        break;
+
+      case 'payment.failed':
+      case 'subscription.halted':
+        await handlePaymentFailure(userId, 'com.gumbo.english', data, packageFilter);
+        break;
+
+      case 'subscription.cancelled':
+        await handleSubscriptionCancellation(userId, 'com.gumbo.english', data, packageFilter);
+        break;
+
+      default:
+        console.log('Unhandled event type:', event);
+    }
+
+    res.json({ success: true, message: 'Callback processed successfully' });
+  } catch (error) {
+    console.error('Payment callback error (english):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Callback processing failed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Handle successful payment/subscription activation
+ */
+const handlePaymentSuccess = async (userId, packageId, data, packageFilter) => {
+  try {
+    console.log('Processing payment success:', { userId, packageId, data });
+
+    // Find user
+    const user = await User.findOne({ _id: userId, ...packageFilter });
+    if (!user) {
+      console.error('User not found for payment success:', userId);
+      return;
+    }
+
+    // Create or update subscription record
+    const subscriptionData = {
+      ...packageFilter,
+      user: userId,
+      plan: data.planType || 'monthly',
+      status: 'active',
+      startDate: new Date(),
+      endDate: new Date(data.endDate || Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+      amount: data.amount || 0,
+      currency: data.currency || 'INR',
+      paymentProvider: 'razorpay',
+      paymentId: data.razorpayPaymentId || data.paymentId,
+      orderId: data.razorpayOrderId || data.orderId,
+      razorpaySubscriptionId: data.razorpaySubscriptionId,
+      autoRenew: data.isRecurring || false,
+      isRecurring: data.isRecurring || false,
+      subscriptionType: data.isRecurring ? 'recurring' : 'one-time',
+      metadata: {
+        customerEmail: user.email,
+        customerPhone: user.phone,
+        microserviceSubscriptionId: data.subscriptionId,
+        microserviceOrderId: data.orderId,
+        webhookEvents: [`payment.success:${new Date().toISOString()}`]
+      }
+    };
+
+    // Update or create subscription
+    await Subscription.findOneAndUpdate(
+      { ...packageFilter, user: userId },
+      subscriptionData,
+      { upsert: true, new: true }
+    );
+
+    console.log('Subscription updated successfully for user:', userId);
+  } catch (error) {
+    console.error('Error handling payment success:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle payment failure
+ */
+const handlePaymentFailure = async (userId, packageId, data, packageFilter) => {
+  try {
+    console.log('Processing payment failure:', { userId, packageId, data });
+
+    // Find existing subscription and mark as failed or handle retry logic
+    const subscription = await Subscription.findOne({
+      ...packageFilter,
+      user: userId,
+      status: { $in: ['active', 'pending'] }
+    });
+
+    if (subscription) {
+      await subscription.handleFailedPayment();
+      console.log('Payment failure handled for subscription:', subscription._id);
+    }
+  } catch (error) {
+    console.error('Error handling payment failure:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle subscription cancellation
+ */
+const handleSubscriptionCancellation = async (userId, packageId, data, packageFilter) => {
+  try {
+    console.log('Processing subscription cancellation:', { userId, packageId, data });
+
+    // Find and cancel subscription
+    const subscription = await Subscription.findOne({
+      ...packageFilter,
+      user: userId,
+      razorpaySubscriptionId: data.razorpaySubscriptionId
+    });
+
+    if (subscription) {
+      await subscription.cancel('Cancelled via payment microservice');
+      console.log('Subscription cancelled successfully:', subscription._id);
+    }
+  } catch (error) {
+    console.error('Error handling subscription cancellation:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   handleRazorpayWebhook,
   testWebhook,
-  debugSubscriptions
+  debugSubscriptions,
+  handlePaymentCallbackLearning,
+  handlePaymentCallbackEnglish
 };
