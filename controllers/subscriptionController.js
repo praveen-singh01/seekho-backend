@@ -184,8 +184,9 @@ const createOrder = async (req, res) => {
           billingCycle: plan,
           recurring: recurring,
           metadata: {
+            userName: req.user.name || 'User',
             userEmail: req.user.email,
-            userPhone: req.user.phone || '',
+            userPhone: req.user.phone || req.body.phone || '9999999999',
             userId: req.user.id,
             packageId: req.packageId
           }
