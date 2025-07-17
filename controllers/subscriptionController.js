@@ -120,6 +120,14 @@ const createOrder = async (req, res) => {
   try {
     let { plan, recurring } = req.body;
 
+    // Debug: Log the incoming request
+    console.log('🔍 DEBUG: Incoming createOrder request:', {
+      plan: plan,
+      recurring: recurring,
+      recurringType: typeof recurring,
+      body: req.body
+    });
+
     // Map Razorpay plan IDs to plan types if needed
     const planMapping = {
       [process.env.RAZORPAY_MONTHLY_PLAN_ID]: 'monthly',
@@ -202,6 +210,7 @@ const createOrder = async (req, res) => {
 
         if (!recurring) {
           // Create one-time order via microservice
+          console.log('🔍 DEBUG: Taking ONE-TIME payment path');
           console.log('🔍 DEBUG: Calling payment microservice with amount:', planConfig.amount);
 
           const orderResponse = await paymentMicroserviceClient.createOrder(
@@ -241,6 +250,7 @@ const createOrder = async (req, res) => {
           });
         } else {
           // Create recurring subscription via microservice
+          console.log('🔍 DEBUG: Taking RECURRING subscription path');
           const subscriptionResponse = await paymentMicroserviceClient.createSubscription(
             req.user.id,
             req.packageId,

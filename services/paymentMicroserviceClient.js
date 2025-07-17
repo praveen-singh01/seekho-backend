@@ -174,8 +174,17 @@ class PaymentMicroserviceClient {
         planId,
         error: error.response?.data || error.message
       });
-      
-      throw new Error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to create subscription');
+
+      // Check if it's a customer creation error
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+
+      if (errorMessage && errorMessage.includes('customer')) {
+        // If customer creation failed, it might be because customer already exists
+        // The payment microservice should handle this, but we can provide a better error message
+        throw new Error('Customer already exists or customer creation failed. Please try again or contact support.');
+      }
+
+      throw new Error(errorMessage || 'Failed to create subscription');
     }
   }
 

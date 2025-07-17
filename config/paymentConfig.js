@@ -42,13 +42,13 @@ const config = {
       monthly: {
         planId: process.env.RAZORPAY_MONTHLY_PLAN_ID_LEARNING || process.env.RAZORPAY_MONTHLY_PLAN_ID || 'plan_monthly_learning',
         duration: 30,
-        amount: 117, // ₹117 in paise (₹99 + 18% GST)
+        amount: 11700, // ₹117 in paise (₹99 + 18% GST)
         currency: 'INR'
       },
       yearly: {
         planId: process.env.RAZORPAY_YEARLY_PLAN_ID_LEARNING || process.env.RAZORPAY_YEARLY_PLAN_ID || 'plan_yearly_learning',
         duration: 365,
-        amount: 587, // ₹587 (will be converted to paise by payment microservice if needed)
+        amount: 58700, // ₹587 in paise (₹499 + 18% GST)
         currency: 'INR'
       }
     },
