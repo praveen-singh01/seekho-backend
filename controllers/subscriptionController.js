@@ -179,13 +179,22 @@ const createOrder = async (req, res) => {
       try {
         const planConfig = getPlanConfig(req.packageId, plan);
 
+        // Debug: Log the plan configuration
+        console.log('🔍 DEBUG: Plan Config from paymentConfig.js:', {
+          plan: plan,
+          planConfig: planConfig,
+          amount: planConfig.amount,
+          amountInRupees: planConfig.amount / 100
+        });
+
         const paymentContext = {
           subscriptionType: 'premium',
           billingCycle: plan,
           recurring: recurring,
           metadata: {
+            userName: req.user.name || 'User',
             userEmail: req.user.email,
-            userPhone: req.user.phone || '',
+            userPhone: req.user.phone || req.body.phone || '9999999999',
             userId: req.user.id,
             packageId: req.packageId
           }
@@ -193,6 +202,8 @@ const createOrder = async (req, res) => {
 
         if (!recurring) {
           // Create one-time order via microservice
+          console.log('🔍 DEBUG: Calling payment microservice with amount:', planConfig.amount);
+
           const orderResponse = await paymentMicroserviceClient.createOrder(
             req.user.id,
             req.packageId,
@@ -200,6 +211,14 @@ const createOrder = async (req, res) => {
             planConfig.currency,
             paymentContext
           );
+
+          console.log('🔍 DEBUG: Payment microservice response:', {
+            orderId: orderResponse.data.orderId,
+            razorpayOrderId: orderResponse.data.razorpayOrderId,
+            amount: orderResponse.data.amount,
+            amountInRupees: orderResponse.data.amount / 100,
+            currency: orderResponse.data.currency
+          });
 
           return res.status(200).json({
             success: true,
@@ -273,11 +292,21 @@ const createOrder = async (req, res) => {
         });
       }
 
+      // Debug: Log the amount being sent
+      console.log('🔍 DEBUG Legacy Order Response:', {
+        orderId: result.order.id,
+        amount: result.order.amount,
+        amountInRupees: result.order.amount / 100,
+        plan: plan,
+        source: 'legacy'
+      });
+
       // Response for one-time order
       res.status(200).json({
         success: true,
         data: {
           orderId: result.order.id,
+          razorpayOrderId: result.order.id, // Add this field for consistency
           amount: result.order.amount,
           currency: result.order.currency,
           plan: plan,
