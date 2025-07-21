@@ -24,15 +24,33 @@ const {
   getSubscriptionStats,
   runSubscriptionMaintenance,
   getAllSubscriptions,
-  getSubscriptionAnalytics
+  getSubscriptionAnalytics,
+  // New content management functions
+  createQuestionnaire,
+  updateQuestionnaire,
+  getQuestionnaires,
+  createMCQ,
+  updateMCQ,
+  getMCQs,
+  createLearningModule,
+  updateLearningModule,
+  getLearningModules,
+  getAnswerAnalytics,
+  // Text content management functions
+  createTextContent,
+  updateTextContent,
+  getTextContent
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
-const { 
-  validateCategory, 
-  validateTopic, 
-  validateVideo, 
+const {
+  validateCategory,
+  validateTopic,
+  validateVideo,
   validateObjectId,
-  validatePagination 
+  validatePagination,
+  validateQuestionnaire,
+  validateMCQ,
+  validateLearningModule
 } = require('../middleware/validation');
 
 const router = express.Router();
@@ -520,5 +538,217 @@ router.get('/subscriptions/analytics', getSubscriptionAnalytics);
 // @desc    Get all subscriptions with filters
 // @access  Private/Admin
 router.get('/subscriptions', validatePagination, getAllSubscriptions);
+
+// ==================== NEW CONTENT MANAGEMENT ROUTES ====================
+
+// Questionnaire management routes
+// @route   GET /api/admin/questionnaires
+// @desc    Get all questionnaires for admin
+// @access  Private/Admin
+router.get('/questionnaires', validatePagination, getQuestionnaires);
+
+// @route   POST /api/admin/questionnaires
+// @desc    Create new questionnaire
+// @access  Private/Admin
+router.post('/questionnaires', validateQuestionnaire, createQuestionnaire);
+
+// @route   PUT /api/admin/questionnaires/:id
+// @desc    Update questionnaire
+// @access  Private/Admin
+router.put('/questionnaires/:id', validateObjectId(), validateQuestionnaire, updateQuestionnaire);
+
+// @route   DELETE /api/admin/questionnaires/:id
+// @desc    Delete questionnaire (soft delete)
+// @access  Private/Admin
+router.delete('/questionnaires/:id', validateObjectId(), async (req, res) => {
+  try {
+    const Questionnaire = require('../models/Questionnaire');
+    const { getPackageFilter } = require('../utils/helpers');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const questionnaire = await Questionnaire.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!questionnaire) {
+      return res.status(404).json({
+        success: false,
+        message: 'Questionnaire not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Questionnaire deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete questionnaire error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// MCQ management routes
+// @route   GET /api/admin/mcqs
+// @desc    Get all MCQs for admin
+// @access  Private/Admin
+router.get('/mcqs', validatePagination, getMCQs);
+
+// @route   POST /api/admin/mcqs
+// @desc    Create new MCQ
+// @access  Private/Admin
+router.post('/mcqs', validateMCQ, createMCQ);
+
+// @route   PUT /api/admin/mcqs/:id
+// @desc    Update MCQ
+// @access  Private/Admin
+router.put('/mcqs/:id', validateObjectId(), validateMCQ, updateMCQ);
+
+// @route   DELETE /api/admin/mcqs/:id
+// @desc    Delete MCQ (soft delete)
+// @access  Private/Admin
+router.delete('/mcqs/:id', validateObjectId(), async (req, res) => {
+  try {
+    const MCQ = require('../models/MCQ');
+    const { getPackageFilter } = require('../utils/helpers');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const mcq = await MCQ.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!mcq) {
+      return res.status(404).json({
+        success: false,
+        message: 'MCQ not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'MCQ deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete MCQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Learning Module management routes
+// @route   GET /api/admin/learning-modules
+// @desc    Get all learning modules for admin
+// @access  Private/Admin
+router.get('/learning-modules', validatePagination, getLearningModules);
+
+// @route   POST /api/admin/learning-modules
+// @desc    Create new learning module
+// @access  Private/Admin
+router.post('/learning-modules', validateLearningModule, createLearningModule);
+
+// @route   PUT /api/admin/learning-modules/:id
+// @desc    Update learning module
+// @access  Private/Admin
+router.put('/learning-modules/:id', validateObjectId(), validateLearningModule, updateLearningModule);
+
+// @route   DELETE /api/admin/learning-modules/:id
+// @desc    Delete learning module (soft delete)
+// @access  Private/Admin
+router.delete('/learning-modules/:id', validateObjectId(), async (req, res) => {
+  try {
+    const LearningModule = require('../models/LearningModule');
+    const { getPackageFilter } = require('../utils/helpers');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const module = await LearningModule.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!module) {
+      return res.status(404).json({
+        success: false,
+        message: 'Learning module not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Learning module deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete learning module error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Text Content management routes
+// @route   GET /api/admin/text-content
+// @desc    Get all text content for admin
+// @access  Private/Admin
+router.get('/text-content', validatePagination, getTextContent);
+
+// @route   POST /api/admin/text-content
+// @desc    Create new text content
+// @access  Private/Admin
+router.post('/text-content', createTextContent);
+
+// @route   PUT /api/admin/text-content/:id
+// @desc    Update text content
+// @access  Private/Admin
+router.put('/text-content/:id', validateObjectId(), updateTextContent);
+
+// @route   DELETE /api/admin/text-content/:id
+// @desc    Delete text content (soft delete)
+// @access  Private/Admin
+router.delete('/text-content/:id', validateObjectId(), async (req, res) => {
+  try {
+    const TextContent = require('../models/TextContent');
+    const { getPackageFilter } = require('../config/packages');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const textContent = await TextContent.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!textContent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Text content not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Text content deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete text content error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Answer analytics route
+// @route   GET /api/admin/answers/analytics
+// @desc    Get answer analytics
+// @access  Private/Admin
+router.get('/answers/analytics', getAnswerAnalytics);
 
 module.exports = router;

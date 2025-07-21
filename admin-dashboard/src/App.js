@@ -17,6 +17,9 @@ import NotificationsPage from './pages/NotificationsPage';
 import UserAnalyticsPage from './pages/UserAnalyticsPage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import SubscriptionAnalyticsPage from './pages/SubscriptionAnalyticsPage';
+import QuestionnairesPage from './pages/QuestionnairesPage';
+import MCQsPage from './pages/MCQsPage';
+import LearningModulesPage from './pages/LearningModulesPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -90,6 +93,9 @@ function App() {
                 <Route path="/categories" element={<CategoriesPage />} />
                 <Route path="/topics" element={<TopicsPage />} />
                 <Route path="/videos" element={<VideosPage />} />
+                <Route path="/questionnaires" element={<QuestionnairesPage />} />
+                <Route path="/mcqs" element={<MCQsPage />} />
+                <Route path="/learning-modules" element={<LearningModulesPage />} />
                 <Route path="/admin-users" element={<AdminUsersPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />

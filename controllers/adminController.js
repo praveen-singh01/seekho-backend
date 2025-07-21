@@ -2,6 +2,11 @@ const User = require('../models/User');
 const Category = require('../models/Category');
 const Topic = require('../models/Topic');
 const Video = require('../models/Video');
+const Questionnaire = require('../models/Questionnaire');
+const MCQ = require('../models/MCQ');
+const LearningModule = require('../models/LearningModule');
+const TextContent = require('../models/TextContent');
+const UserAnswer = require('../models/UserAnswer');
 const Subscription = require('../models/Subscription');
 const SubscriptionService = require('../services/subscriptionService');
 const UserProgress = require('../models/UserProgress');
@@ -1523,6 +1528,673 @@ const getSubscriptionAnalytics = async (req, res) => {
   }
 };
 
+// ==================== NEW CONTENT MANAGEMENT FUNCTIONS ====================
+
+// @desc    Create new questionnaire
+// @route   POST /api/admin/questionnaires
+// @access  Private/Admin
+const createQuestionnaire = async (req, res) => {
+  try {
+    const questionnaireData = {
+      ...req.body,
+      packageId: req.packageId,
+      createdBy: req.user._id
+    };
+
+    const questionnaire = await Questionnaire.create(questionnaireData);
+    await questionnaire.populate('topic', 'title slug');
+
+    res.status(201).json({
+      success: true,
+      data: questionnaire
+    });
+  } catch (error) {
+    console.error('Create questionnaire error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update questionnaire
+// @route   PUT /api/admin/questionnaires/:id
+// @access  Private/Admin
+const updateQuestionnaire = async (req, res) => {
+  try {
+    const packageFilter = getPackageFilter(req.packageId);
+    const questionnaire = await Questionnaire.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('topic', 'title slug');
+
+    if (!questionnaire) {
+      return res.status(404).json({
+        success: false,
+        message: 'Questionnaire not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: questionnaire
+    });
+  } catch (error) {
+    console.error('Update questionnaire error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all questionnaires for admin
+// @route   GET /api/admin/questionnaires
+// @access  Private/Admin
+const getQuestionnaires = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, topic, difficulty, status } = req.query;
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (topic) query.topic = topic;
+    if (difficulty) query.difficulty = difficulty;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const questionnaires = await Questionnaire.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('topic', 'title slug')
+      .populate('createdBy', 'name')
+      .select('-__v');
+
+    const total = await Questionnaire.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: questionnaires.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: questionnaires
+    });
+  } catch (error) {
+    console.error('Get admin questionnaires error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Create new MCQ
+// @route   POST /api/admin/mcqs
+// @access  Private/Admin
+const createMCQ = async (req, res) => {
+  try {
+    const mcqData = {
+      ...req.body,
+      packageId: req.packageId,
+      createdBy: req.user._id
+    };
+
+    const mcq = await MCQ.create(mcqData);
+    await mcq.populate('topic', 'title slug');
+
+    res.status(201).json({
+      success: true,
+      data: mcq
+    });
+  } catch (error) {
+    console.error('Create MCQ error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update MCQ
+// @route   PUT /api/admin/mcqs/:id
+// @access  Private/Admin
+const updateMCQ = async (req, res) => {
+  try {
+    const packageFilter = getPackageFilter(req.packageId);
+    const mcq = await MCQ.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('topic', 'title slug');
+
+    if (!mcq) {
+      return res.status(404).json({
+        success: false,
+        message: 'MCQ not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: mcq
+    });
+  } catch (error) {
+    console.error('Update MCQ error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all MCQs for admin
+// @route   GET /api/admin/mcqs
+// @access  Private/Admin
+const getMCQs = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, topic, difficulty, status } = req.query;
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (topic) query.topic = topic;
+    if (difficulty) query.difficulty = difficulty;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const mcqs = await MCQ.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('topic', 'title slug')
+      .populate('createdBy', 'name')
+      .select('-__v');
+
+    const total = await MCQ.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: mcqs.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: mcqs
+    });
+  } catch (error) {
+    console.error('Get admin MCQs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Create new learning module
+// @route   POST /api/admin/learning-modules
+// @access  Private/Admin
+const createLearningModule = async (req, res) => {
+  try {
+    const moduleData = {
+      ...req.body,
+      packageId: req.packageId,
+      createdBy: req.user._id
+    };
+
+    const module = await LearningModule.create(moduleData);
+    await module.populate('topic', 'title slug');
+
+    res.status(201).json({
+      success: true,
+      data: module
+    });
+  } catch (error) {
+    console.error('Create learning module error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update learning module
+// @route   PUT /api/admin/learning-modules/:id
+// @access  Private/Admin
+const updateLearningModule = async (req, res) => {
+  try {
+    const packageFilter = getPackageFilter(req.packageId);
+    const module = await LearningModule.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('topic', 'title slug');
+
+    if (!module) {
+      return res.status(404).json({
+        success: false,
+        message: 'Learning module not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: module
+    });
+  } catch (error) {
+    console.error('Update learning module error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all learning modules for admin
+// @route   GET /api/admin/learning-modules
+// @access  Private/Admin
+const getLearningModules = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, topic, difficulty, status } = req.query;
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (topic) query.topic = topic;
+    if (difficulty) query.difficulty = difficulty;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const modules = await LearningModule.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('topic', 'title slug')
+      .populate('createdBy', 'name')
+      .select('-__v');
+
+    const total = await LearningModule.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: modules.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: modules
+    });
+  } catch (error) {
+    console.error('Get admin learning modules error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get answer analytics
+// @route   GET /api/admin/answers/analytics
+// @access  Private/Admin
+const getAnswerAnalytics = async (req, res) => {
+  try {
+    const { contentType, contentId, timeRange = '30' } = req.query;
+    const packageFilter = getPackageFilter(req.packageId);
+
+    // Build date filter
+    const dateFilter = {};
+    if (timeRange !== 'all') {
+      const days = parseInt(timeRange);
+      dateFilter.createdAt = {
+        $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      };
+    }
+
+    // Build query
+    const query = {
+      ...packageFilter,
+      ...dateFilter
+    };
+
+    if (contentType) query.contentType = contentType;
+    if (contentId) query.contentId = contentId;
+
+    // Get overall stats
+    const totalAnswers = await UserAnswer.countDocuments(query);
+    const completedAnswers = await UserAnswer.countDocuments({
+      ...query,
+      isCompleted: true
+    });
+
+    // Get performance by content type
+    const performanceByType = await UserAnswer.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$contentType',
+          totalAttempts: { $sum: 1 },
+          completedAttempts: { $sum: { $cond: ['$isCompleted', 1, 0] } },
+          averageScore: { $avg: '$score' },
+          averageTime: { $avg: '$completionTime' }
+        }
+      }
+    ]);
+
+    // Get top performing content
+    const topContent = await UserAnswer.aggregate([
+      { $match: { ...query, isCompleted: true } },
+      {
+        $group: {
+          _id: {
+            contentId: '$contentId',
+            contentType: '$contentType'
+          },
+          totalAttempts: { $sum: 1 },
+          averageScore: { $avg: '$score' },
+          averageTime: { $avg: '$completionTime' }
+        }
+      },
+      { $sort: { totalAttempts: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Get user engagement
+    const userEngagement = await UserAnswer.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$user',
+          totalAttempts: { $sum: 1 },
+          completedAttempts: { $sum: { $cond: ['$isCompleted', 1, 0] } },
+          averageScore: { $avg: '$score' }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalUsers: { $sum: 1 },
+          averageAttemptsPerUser: { $avg: '$totalAttempts' },
+          averageCompletionRate: { $avg: { $divide: ['$completedAttempts', '$totalAttempts'] } }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalAnswers,
+          completedAnswers,
+          completionRate: totalAnswers > 0 ? Math.round((completedAnswers / totalAnswers) * 100) : 0
+        },
+        performanceByType,
+        topContent,
+        userEngagement: userEngagement[0] || {
+          totalUsers: 0,
+          averageAttemptsPerUser: 0,
+          averageCompletionRate: 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get answer analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Create new text content
+// @route   POST /api/admin/text-content
+// @access  Private/Admin
+const createTextContent = async (req, res) => {
+  try {
+    const textContentData = {
+      ...req.body,
+      packageId: req.packageId,
+      createdBy: req.user._id
+    };
+
+    const textContent = await TextContent.create(textContentData);
+    await textContent.populate('topic', 'title slug');
+
+    res.status(201).json({
+      success: true,
+      data: textContent
+    });
+  } catch (error) {
+    console.error('Create text content error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update text content
+// @route   PUT /api/admin/text-content/:id
+// @access  Private/Admin
+const updateTextContent = async (req, res) => {
+  try {
+    const packageFilter = getPackageFilter(req.packageId);
+    const textContent = await TextContent.findOneAndUpdate(
+      { _id: req.params.id, ...packageFilter },
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('topic', 'title slug');
+
+    if (!textContent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Text content not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: textContent
+    });
+  } catch (error) {
+    console.error('Update text content error:', error);
+
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get all text content for admin
+// @route   GET /api/admin/text-content
+// @access  Private/Admin
+const getTextContent = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, topic, difficulty, contentType, status } = req.query;
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (topic) query.topic = topic;
+    if (difficulty) query.difficulty = difficulty;
+    if (contentType) query.contentType = contentType;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const textContent = await TextContent.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('topic', 'title slug')
+      .populate('createdBy', 'name')
+      .select('-__v');
+
+    const total = await TextContent.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: textContent.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: textContent
+    });
+  } catch (error) {
+    console.error('Get admin text content error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -1548,5 +2220,20 @@ module.exports = {
   getSubscriptionStats,
   runSubscriptionMaintenance,
   getAllSubscriptions,
-  getSubscriptionAnalytics
+  getSubscriptionAnalytics,
+  // New content management functions
+  createQuestionnaire,
+  updateQuestionnaire,
+  getQuestionnaires,
+  createMCQ,
+  updateMCQ,
+  getMCQs,
+  createLearningModule,
+  updateLearningModule,
+  getLearningModules,
+  getAnswerAnalytics,
+  // Text content management functions
+  createTextContent,
+  updateTextContent,
+  getTextContent
 };

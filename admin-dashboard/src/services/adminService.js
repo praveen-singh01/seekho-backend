@@ -311,4 +311,151 @@ export const adminService = {
       throw error;
     }
   },
+
+  // ==================== NEW CONTENT MANAGEMENT METHODS ====================
+
+  // Questionnaires
+  getQuestionnaires: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/questionnaires?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  createQuestionnaire: async (questionnaireData) => {
+    try {
+      const response = await api.post('/api/admin/questionnaires', questionnaireData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateQuestionnaire: async (id, questionnaireData) => {
+    try {
+      const response = await api.put(`/api/admin/questionnaires/${id}`, questionnaireData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteQuestionnaire: async (id) => {
+    try {
+      const response = await api.delete(`/api/admin/questionnaires/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // MCQs
+  getMCQs: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/mcqs?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  createMCQ: async (mcqData) => {
+    try {
+      const response = await api.post('/api/admin/mcqs', mcqData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateMCQ: async (id, mcqData) => {
+    try {
+      const response = await api.put(`/api/admin/mcqs/${id}`, mcqData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteMCQ: async (id) => {
+    try {
+      const response = await api.delete(`/api/admin/mcqs/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Learning Modules
+  getLearningModules: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/learning-modules?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  createLearningModule: async (moduleData) => {
+    try {
+      const response = await api.post('/api/admin/learning-modules', moduleData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateLearningModule: async (id, moduleData) => {
+    try {
+      const response = await api.put(`/api/admin/learning-modules/${id}`, moduleData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteLearningModule: async (id) => {
+    try {
+      const response = await api.delete(`/api/admin/learning-modules/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Answer Analytics
+  getAnswerAnalytics: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/answers/analytics?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };

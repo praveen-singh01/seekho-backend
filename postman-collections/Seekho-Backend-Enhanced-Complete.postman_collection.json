@@ -1,0 +1,779 @@
+{
+  "info": {
+    "name": "Seekho Backend - Enhanced Complete API",
+    "description": "Complete API collection for Seekho Backend with all new content management features including Questionnaires, MCQs, Learning Modules, and Text Content for multi-tenant support (Seekho & Bolo apps)",
+    "version": "3.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "seekho_package_id",
+      "value": "com.gumbo.learning",
+      "type": "string"
+    },
+    {
+      "key": "bolo_package_id",
+      "value": "com.gumbo.english",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topic_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "video_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionnaire_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mcq_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "learning_module_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "text_content_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Google OAuth Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"your-google-id-token-here\",\n  \"packageId\": \"{{bolo_package_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "google"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('jwt_token', response.data.token);",
+                  "        pm.collectionVariables.set('user_id', response.data.user._id);",
+                  "        console.log('✅ User logged in successfully');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Categories",
+      "item": [
+        {
+          "name": "Get All Categories - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📖 Topics",
+      "item": [
+        {
+          "name": "Get All Topics - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/topics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Topic",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/topics/{{topic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "topics", "{{topic_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎥 Videos",
+      "item": [
+        {
+          "name": "Get All Videos - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/videos?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/videos/{{video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", "{{video_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Questionnaires (NEW)",
+      "item": [
+        {
+          "name": "Get All Questionnaires - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/questionnaires?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "questionnaires"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "topic",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Questionnaire",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/questionnaires/{{questionnaire_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "questionnaires", "{{questionnaire_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit Questionnaire Answers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\n      \"questionId\": \"question-id-1\",\n      \"answer\": \"My answer to question 1\"\n    },\n    {\n      \"questionId\": \"question-id-2\",\n      \"answer\": \"My answer to question 2\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/questionnaires/{{questionnaire_id}}/submit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "questionnaires", "{{questionnaire_id}}", "submit"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧩 MCQs (NEW)",
+      "item": [
+        {
+          "name": "Get All MCQs - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mcqs?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mcqs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "topic",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single MCQ",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mcqs/{{mcq_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mcqs", "{{mcq_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit MCQ Answers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\n      \"questionId\": \"question-id-1\",\n      \"selectedOption\": 0\n    },\n    {\n      \"questionId\": \"question-id-2\",\n      \"selectedOption\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mcqs/{{mcq_id}}/submit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mcqs", "{{mcq_id}}", "submit"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎓 Learning Modules (NEW)",
+      "item": [
+        {
+          "name": "Get All Learning Modules - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/learning-modules?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "learning-modules"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "topic",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Learning Module with Content",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/learning-modules/{{learning_module_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "learning-modules", "{{learning_module_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 Text Content (NEW)",
+      "item": [
+        {
+          "name": "Get All Text Content - Bolo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/text-content?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "text-content"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "contentType",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "topic",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Text Content",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/text-content/{{text_content_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "text-content", "{{text_content_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Content Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/text-content/types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "text-content", "types"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Admin APIs (NEW)",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@bolo.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('admin_token', response.data.token);",
+                  "        console.log('✅ Admin logged in successfully');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Questionnaire (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"English Grammar Practice\",\n  \"description\": \"Practice questions for English grammar\",\n  \"topic\": \"{{topic_id}}\",\n  \"difficulty\": \"beginner\",\n  \"estimatedTime\": 15,\n  \"isPremium\": false,\n  \"questions\": [\n    {\n      \"questionText\": \"What is the past tense of 'go'?\",\n      \"questionType\": \"short_answer\",\n      \"order\": 0,\n      \"isRequired\": true\n    },\n    {\n      \"questionText\": \"Explain the difference between 'there', 'their', and 'they're'.\",\n      \"questionType\": \"long_answer\",\n      \"order\": 1,\n      \"isRequired\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/questionnaires",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "questionnaires"]
+            }
+          }
+        },
+        {
+          "name": "Create MCQ (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"English Tenses Quiz\",\n  \"description\": \"Multiple choice quiz on English tenses\",\n  \"topic\": \"{{topic_id}}\",\n  \"difficulty\": \"beginner\",\n  \"estimatedTime\": 10,\n  \"passingScore\": 70,\n  \"isPremium\": false,\n  \"questions\": [\n    {\n      \"questionText\": \"Which sentence uses the present continuous tense?\",\n      \"options\": [\n        { \"text\": \"I go to school every day\", \"isCorrect\": false },\n        { \"text\": \"I am going to school now\", \"isCorrect\": true },\n        { \"text\": \"I went to school yesterday\", \"isCorrect\": false },\n        { \"text\": \"I will go to school tomorrow\", \"isCorrect\": false }\n      ],\n      \"explanation\": \"Present continuous uses 'am/is/are + verb+ing'\",\n      \"difficulty\": \"easy\",\n      \"points\": 1,\n      \"order\": 0\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/mcqs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "mcqs"]
+            }
+          }
+        },
+        {
+          "name": "Create Text Content (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Present Tense Guide\",\n  \"description\": \"Complete guide to present tense in English\",\n  \"topic\": \"{{topic_id}}\",\n  \"contentType\": \"summary\",\n  \"content\": \"# Present Tense\\n\\nThe present tense is used to describe current actions, habits, and general truths.\\n\\n## Simple Present\\n- I/You/We/They + verb\\n- He/She/It + verb+s\\n\\n## Present Continuous\\n- am/is/are + verb+ing\",\n  \"contentFormat\": \"markdown\",\n  \"difficulty\": \"beginner\",\n  \"isPremium\": false,\n  \"tags\": [\"grammar\", \"tenses\", \"beginner\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/text-content",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "text-content"]
+            }
+          }
+        },
+        {
+          "name": "Get Answer Analytics (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{bolo_package_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/answers/analytics?contentType=questionnaire&period=week",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "answers", "analytics"],
+              "query": [
+                {
+                  "key": "contentType",
+                  "value": "questionnaire"
+                },
+                {
+                  "key": "period",
+                  "value": "week"
+                },
+                {
+                  "key": "topicId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
