@@ -23,8 +23,6 @@ import {
   Select,
   MenuItem,
   Grid,
-  Card,
-  CardContent,
   Tooltip,
   Alert,
   Snackbar,
@@ -38,8 +36,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
-  School as SchoolIcon,
-  DragIndicator as DragIcon
+  School as SchoolIcon
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { adminService } from '../services/adminService';
@@ -48,9 +45,9 @@ const LearningModulesPage = () => {
   const { selectedApp } = useApp();
   const [modules, setModules] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [questionnaires, setQuestionnaires] = useState([]);
-  const [mcqs, setMCQs] = useState([]);
-  const [videos, setVideos] = useState([]);
+  const [availableContent, setAvailableContent] = useState([]);
+  const [selectedContentType, setSelectedContentType] = useState('');
+  const [contentSearchTerm, setContentSearchTerm] = useState('');
   const [, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -75,8 +72,7 @@ const LearningModulesPage = () => {
   useEffect(() => {
     fetchModules();
     fetchTopics();
-    fetchContent();
-  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedDifficulty]);
+  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedDifficulty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchModules = async () => {
     try {
@@ -109,21 +105,34 @@ const LearningModulesPage = () => {
     }
   };
 
-  const fetchContent = async () => {
+  const fetchContentByType = async (contentType) => {
     try {
-      const [questionnairesRes, mcqsRes, videosRes] = await Promise.all([
-        adminService.getQuestionnaires({ limit: 100 }),
-        adminService.getMCQs({ limit: 100 }),
-        adminService.getVideos({ limit: 100 })
-      ]);
-      
-      setQuestionnaires(questionnairesRes.data);
-      setMCQs(mcqsRes.data);
-      setVideos(videosRes.data);
+      let response;
+      switch (contentType) {
+        case 'questionnaire':
+          response = await adminService.getQuestionnaires({ limit: 100 });
+          break;
+        case 'mcq':
+          response = await adminService.getMCQs({ limit: 100 });
+          break;
+        case 'text':
+          response = await adminService.getTextContent({ limit: 100 });
+          break;
+        case 'video':
+          response = await adminService.getVideos({ limit: 100 });
+          break;
+        default:
+          setAvailableContent([]);
+          return;
+      }
+      setAvailableContent(response.data || []);
     } catch (error) {
       console.error('Error fetching content:', error);
+      setAvailableContent([]);
     }
   };
+
+
 
   const handleCreateModule = () => {
     setEditingModule(null);
@@ -135,6 +144,9 @@ const LearningModulesPage = () => {
       isPremium: false,
       content: []
     });
+    setSelectedContentType('');
+    setContentSearchTerm('');
+    setAvailableContent([]);
     setOpenDialog(true);
   };
 
@@ -196,20 +208,55 @@ const LearningModulesPage = () => {
     }
   };
 
-  const addContent = (contentType, contentId, contentModel, title) => {
-    const newContent = {
-      contentType,
-      contentId,
-      contentModel,
-      title, // For display purposes
+
+
+  const handleContentTypeChange = (contentType) => {
+    setSelectedContentType(contentType);
+    setContentSearchTerm('');
+    if (contentType) {
+      fetchContentByType(contentType);
+    } else {
+      setAvailableContent([]);
+    }
+  };
+
+  const getContentModel = (contentType) => {
+    switch (contentType) {
+      case 'questionnaire':
+        return 'Questionnaire';
+      case 'mcq':
+        return 'MCQ';
+      case 'text':
+      case 'summary':
+      case 'reading':
+      case 'instructions':
+      case 'notes':
+      case 'explanation':
+        return 'TextContent';
+      case 'video':
+        return 'Video';
+      default:
+        return 'TextContent';
+    }
+  };
+
+  const addContentToModule = (content) => {
+    const newContentItem = {
+      contentType: selectedContentType,
+      contentId: content._id,
+      contentModel: getContentModel(selectedContentType),
+      title: content.title,
       order: formData.content.length,
       isRequired: true
     };
 
     setFormData({
       ...formData,
-      content: [...formData.content, newContent]
+      content: [...formData.content, newContentItem]
     });
+
+    // Clear search and reset
+    setContentSearchTerm('');
   };
 
   const removeContent = (index) => {
@@ -220,16 +267,24 @@ const LearningModulesPage = () => {
     });
   };
 
-  const moveContent = (fromIndex, toIndex) => {
-    const newContent = [...formData.content];
-    const [movedItem] = newContent.splice(fromIndex, 1);
-    newContent.splice(toIndex, 0, movedItem);
-    
-    setFormData({
-      ...formData,
-      content: newContent.map((item, i) => ({ ...item, order: i }))
+  const getFilteredContent = () => {
+    if (!availableContent) return [];
+
+    return availableContent.filter(content => {
+      const matchesSearch = !contentSearchTerm ||
+        content.title.toLowerCase().includes(contentSearchTerm.toLowerCase()) ||
+        (content.description && content.description.toLowerCase().includes(contentSearchTerm.toLowerCase()));
+
+      // Don't show content that's already added to the module
+      const notAlreadyAdded = !formData.content.some(item =>
+        item.contentId === content._id && item.contentType === selectedContentType
+      );
+
+      return matchesSearch && notAlreadyAdded;
     });
   };
+
+
 
   const showSnackbar = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
@@ -244,14 +299,7 @@ const LearningModulesPage = () => {
     }
   };
 
-  const getContentTypeIcon = (type) => {
-    switch (type) {
-      case 'video': return '🎥';
-      case 'questionnaire': return '📝';
-      case 'mcq': return '❓';
-      default: return '📄';
-    }
-  };
+
 
   return (
     <Box sx={{ p: 3 }}>
@@ -466,20 +514,118 @@ const LearningModulesPage = () => {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Add content items to this learning module. You can add videos, questionnaires, MCQs, and text content.
               </Typography>
+
+              {/* Add Content Section */}
+              <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" sx={{ mb: 2 }}>Add Content to Module</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Content Type</InputLabel>
+                      <Select
+                        value={selectedContentType}
+                        label="Content Type"
+                        onChange={(e) => handleContentTypeChange(e.target.value)}
+                      >
+                        <MenuItem value="">Select Type</MenuItem>
+                        <MenuItem value="questionnaire">Questionnaires</MenuItem>
+                        <MenuItem value="mcq">MCQs</MenuItem>
+                        <MenuItem value="text">Text Content</MenuItem>
+                        <MenuItem value="video">Videos</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Search content..."
+                      placeholder="Search by title"
+                      value={contentSearchTerm}
+                      onChange={(e) => setContentSearchTerm(e.target.value)}
+                      disabled={!selectedContentType}
+                      helperText={!selectedContentType ? "Select a content type first" : `${getFilteredContent().length} items available`}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled={!selectedContentType || getFilteredContent().length === 0}
+                      sx={{ height: '40px' }}
+                      onClick={() => {
+                        const filtered = getFilteredContent();
+                        if (filtered.length > 0) {
+                          addContentToModule(filtered[0]);
+                        }
+                      }}
+                    >
+                      Add First
+                    </Button>
+                  </Grid>
+                </Grid>
+
+                {/* Available Content List */}
+                {selectedContentType && (
+                  <Box sx={{ mt: 2, maxHeight: 200, overflow: 'auto' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      Available {selectedContentType} content (click to add):
+                    </Typography>
+                    {getFilteredContent().length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', p: 1 }}>
+                        {availableContent.length === 0
+                          ? `No ${selectedContentType} content found. Create some first.`
+                          : 'All available content is already added to this module.'
+                        }
+                      </Typography>
+                    ) : (
+                      <List dense>
+                        {getFilteredContent().slice(0, 5).map((content) => (
+                          <ListItem
+                            key={content._id}
+                            button
+                            onClick={() => addContentToModule(content)}
+                            sx={{
+                              bgcolor: 'background.paper',
+                              mb: 0.5,
+                              borderRadius: 1,
+                              '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
+                            }}
+                          >
+                            <ListItemText
+                              primary={content.title}
+                              secondary={content.description || `${selectedContentType} content`}
+                              primaryTypographyProps={{ variant: 'body2' }}
+                              secondaryTypographyProps={{ variant: 'caption' }}
+                            />
+                          </ListItem>
+                        ))}
+                        {getFilteredContent().length > 5 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ p: 1 }}>
+                            ... and {getFilteredContent().length - 5} more. Use search to find specific content.
+                          </Typography>
+                        )}
+                      </List>
+                    )}
+                  </Box>
+                )}
+              </Paper>
+
+              {/* Current Content Items */}
               {formData.content.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', p: 2, textAlign: 'center' }}>
-                  No content items added yet. Create some content first, then come back to add them to this module.
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', p: 2, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 1 }}>
+                  No content items added yet. Use the section above to add content to this module.
                 </Typography>
               ) : (
                 <List>
                   {formData.content.map((item, index) => (
-                    <ListItem key={index}>
+                    <ListItem key={index} sx={{ bgcolor: 'background.paper', mb: 1, borderRadius: 1 }}>
                       <ListItemText
                         primary={item.title || `${item.contentType} Content`}
-                        secondary={`Type: ${item.contentType} | Order: ${item.order}`}
+                        secondary={`Type: ${item.contentType} | Order: ${item.order + 1}`}
                       />
                       <ListItemSecondaryAction>
-                        <IconButton onClick={() => removeContent(index)}>
+                        <IconButton onClick={() => removeContent(index)} color="error">
                           <DeleteIcon />
                         </IconButton>
                       </ListItemSecondaryAction>

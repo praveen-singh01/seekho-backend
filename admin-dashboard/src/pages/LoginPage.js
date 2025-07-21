@@ -23,8 +23,8 @@ import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
+    username: 'superadmin',
+    password: 'superadmin@123',
   });
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error, clearError } = useAuth();
