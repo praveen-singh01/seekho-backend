@@ -182,6 +182,9 @@ app.use('/api/upload', processPackageId, uploadRoutes);
 app.use('/api/notifications', processPackageId, notificationRoutes);
 app.use('/api/webhooks', optionalPackageId, webhookRoutes);
 
+// Payment Microservice callback routes (no package ID middleware needed)
+app.use('/api', webhookRoutes);
+
 // Error handling middleware
 app.use(notFound);
 app.use(errorHandler);

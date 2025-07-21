@@ -3,6 +3,8 @@ const User = require('../models/User');
 const SubscriptionService = require('../services/subscriptionService');
 const PaymentService = require('../services/paymentService');
 const { getPackageFilter } = require('../config/packages');
+const paymentMicroserviceClient = require('../services/paymentMicroserviceClient');
+const { isMicroserviceEnabled, getPlanConfig } = require('../config/paymentConfig');
 
 // @desc    Get subscription plans
 // @route   GET /api/subscriptions/plans
@@ -118,6 +120,14 @@ const createOrder = async (req, res) => {
   try {
     let { plan, recurring } = req.body;
 
+    // Debug: Log the incoming request
+    console.log('🔍 DEBUG: Incoming createOrder request:', {
+      plan: plan,
+      recurring: recurring,
+      recurringType: typeof recurring,
+      body: req.body
+    });
+
     // Map Razorpay plan IDs to plan types if needed
     const planMapping = {
       [process.env.RAZORPAY_MONTHLY_PLAN_ID]: 'monthly',
@@ -171,6 +181,115 @@ const createOrder = async (req, res) => {
 
     let result;
 
+    // Check if Payment Microservice is enabled
+    if (isMicroserviceEnabled()) {
+      // Use Payment Microservice
+      try {
+        const planConfig = getPlanConfig(req.packageId, plan);
+
+        // Debug: Log the plan configuration
+        console.log('🔍 DEBUG: Plan Config from paymentConfig.js:', {
+          plan: plan,
+          planConfig: planConfig,
+          amount: planConfig.amount,
+          amountInRupees: planConfig.amount / 100
+        });
+
+        const paymentContext = {
+          subscriptionType: 'premium',
+          billingCycle: plan,
+          recurring: recurring,
+          metadata: {
+            userName: req.user.name || 'User',
+            userEmail: req.user.email,
+            userPhone: req.user.phone || req.body.phone || '9999999999',
+            userId: req.user.id,
+            packageId: req.packageId
+          }
+        };
+
+        if (!recurring) {
+          // Create one-time order via microservice
+          console.log('🔍 DEBUG: Taking ONE-TIME payment path');
+          console.log('🔍 DEBUG: Calling payment microservice with amount:', planConfig.amount);
+
+          const orderResponse = await paymentMicroserviceClient.createOrder(
+            req.user.id,
+            req.packageId,
+            planConfig.amount,
+            planConfig.currency,
+            paymentContext
+          );
+
+          console.log('🔍 DEBUG: Payment microservice response:', {
+            orderId: orderResponse.data.orderId,
+            razorpayOrderId: orderResponse.data.razorpayOrderId,
+            amount: orderResponse.data.amount,
+            amountInRupees: orderResponse.data.amount / 100,
+            currency: orderResponse.data.currency
+          });
+
+          return res.status(200).json({
+            success: true,
+            data: {
+              orderId: orderResponse.data.orderId,
+              razorpayOrderId: orderResponse.data.razorpayOrderId,
+              amount: orderResponse.data.amount,
+              currency: orderResponse.data.currency,
+              plan: plan,
+              razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+              type: 'one-time-order',
+              source: 'microservice',
+
+              // Additional details
+              orderDetails: {
+                microserviceOrderId: orderResponse.data.orderId,
+                razorpayOrderId: orderResponse.data.razorpayOrderId
+              }
+            }
+          });
+        } else {
+          // Create recurring subscription via microservice
+          console.log('🔍 DEBUG: Taking RECURRING subscription path');
+          const subscriptionResponse = await paymentMicroserviceClient.createSubscription(
+            req.user.id,
+            req.packageId,
+            planConfig.planId,
+            paymentContext
+          );
+
+          return res.status(200).json({
+            success: true,
+            data: {
+              subscriptionId: subscriptionResponse.data.subscriptionId,
+              razorpaySubscriptionId: subscriptionResponse.data.razorpaySubscriptionId,
+              amount: planConfig.amount,
+              currency: planConfig.currency,
+              plan: plan,
+              razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+              type: 'recurring-subscription',
+              source: 'microservice',
+              shortUrl: subscriptionResponse.data.shortUrl,
+
+              // Additional details
+              subscriptionDetails: {
+                microserviceSubscriptionId: subscriptionResponse.data.subscriptionId,
+                razorpaySubscriptionId: subscriptionResponse.data.razorpaySubscriptionId,
+                status: subscriptionResponse.data.status
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Payment microservice error:', error);
+        return res.status(500).json({
+          success: false,
+          message: error.message || 'Payment service error'
+        });
+      }
+    }
+
+    // Fallback to legacy payment service
     // Handle based on recurring parameter
     if (!recurring) {
       // Create one-time order (recurring: false)
@@ -183,16 +302,27 @@ const createOrder = async (req, res) => {
         });
       }
 
+      // Debug: Log the amount being sent
+      console.log('🔍 DEBUG Legacy Order Response:', {
+        orderId: result.order.id,
+        amount: result.order.amount,
+        amountInRupees: result.order.amount / 100,
+        plan: plan,
+        source: 'legacy'
+      });
+
       // Response for one-time order
       res.status(200).json({
         success: true,
         data: {
           orderId: result.order.id,
+          razorpayOrderId: result.order.id, // Add this field for consistency
           amount: result.order.amount,
           currency: result.order.currency,
           plan: plan,
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
           type: 'one-time-order',
+          source: 'legacy',
           receipt: result.order.receipt,
 
           // Additional details
@@ -229,6 +359,7 @@ const createOrder = async (req, res) => {
           plan: result.subscription.plan,
           razorpayKeyId: process.env.RAZORPAY_KEY_ID,
           type: 'recurring-subscription',
+          source: 'legacy',
 
           // Additional details
           subscriptionDetails: {

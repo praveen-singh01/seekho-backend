@@ -23,33 +23,32 @@ const protect = async (req, res, next) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from token
-      let user = await User.findOne({ _id: decoded.id }).populate('subscription');
 
-      // If user is not found or not admin, try with package filtering
-      if (!user && req.packageId) {
-        const packageFilter = getPackageFilter(req.packageId);
-        user = await User.findOne({
-          _id: decoded.id,
-          ...packageFilter
-        }).populate('subscription');
-      }
+      // Get user from token - first try without package filtering
+      let user = await User.findOne({ _id: decoded.id }).populate('subscription');
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Token is not valid. User not found or package mismatch.'
+          message: 'Token is not valid. User not found.'
         });
       }
 
-      // Ensure user belongs to the correct package (skip for admin users)
-      if (req.packageId && user.role !== 'admin' && user.packageId !== req.packageId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Package ID mismatch.',
-          code: 'PACKAGE_ID_MISMATCH'
-        });
+      // Check if user belongs to the correct package (only if package ID is provided)
+      if (req.packageId && user.role !== 'admin') {
+        // For multi-tenant apps, verify user belongs to the requested package
+        if (user.packageId && user.packageId !== req.packageId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Package ID mismatch.',
+            code: 'PACKAGE_ID_MISMATCH'
+          });
+        }
+
+        // If user doesn't have packageId set, allow access but log it
+        if (!user.packageId) {
+          console.log(`⚠️  User ${user._id} doesn't have packageId set, allowing access to ${req.packageId}`);
+        }
       }
 
       if (!user.isActive) {
@@ -90,20 +89,16 @@ const optionalAuth = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         let user = await User.findOne({ _id: decoded.id }).populate('subscription');
 
-        // If user is not found and package ID is provided, try with package filtering
-        if (!user && req.packageId) {
-          const packageFilter = getPackageFilter(req.packageId);
-          user = await User.findOne({
-            _id: decoded.id,
-            ...packageFilter
-          }).populate('subscription');
-        }
-
         if (user && user.isActive) {
-          // Admin users can access all packages, regular users must match package
-          if (!req.packageId || user.role === 'admin' || user.packageId === req.packageId) {
+          // Admin users can access all packages
+          if (user.role === 'admin') {
             req.user = user;
           }
+          // For regular users, check package access if package ID is provided
+          else if (!req.packageId || !user.packageId || user.packageId === req.packageId) {
+            req.user = user;
+          }
+          // If package mismatch, don't attach user but don't fail (optional auth)
         }
       } catch (error) {
         // Invalid token, but continue without user
