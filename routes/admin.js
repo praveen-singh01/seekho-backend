@@ -237,6 +237,90 @@ router.get('/notifications', validatePagination, getNotifications);
 router.get('/notifications/analytics', getNotificationAnalytics);
 
 // Topic management routes
+// @route   GET /api/admin/topics
+// @desc    Get all topics for admin
+// @access  Private/Admin
+router.get('/topics', validatePagination, async (req, res) => {
+  try {
+    const Topic = require('../models/Topic');
+    const { getPackageFilter } = require('../config/packages');
+
+    const { page = 1, limit = 20, search, category, status } = req.query;
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (category) query.category = category;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const topics = await Topic.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('category', 'title slug')
+      .select('-__v');
+
+    const total = await Topic.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: topics.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: topics
+    });
+  } catch (error) {
+    console.error('Get admin topics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/admin/topics/:id
+// @desc    Get single topic for admin
+// @access  Private/Admin
+router.get('/topics/:id', validateObjectId(), async (req, res) => {
+  try {
+    const Topic = require('../models/Topic');
+    const { getPackageFilter } = require('../config/packages');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const topic = await Topic.findOne({ _id: req.params.id, ...packageFilter })
+      .populate('category', 'title slug');
+
+    if (!topic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Topic not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: topic
+    });
+  } catch (error) {
+    console.error('Get admin topic error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // @route   POST /api/admin/topics
 // @desc    Create new topic
 // @access  Private/Admin

@@ -35,6 +35,7 @@ import {
   TrendingUp,
   Quiz,
   School,
+  Article as ArticleIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -52,6 +53,7 @@ const menuItems = [
   { text: 'Questionnaires', icon: <Quiz />, path: '/questionnaires' },
   { text: 'MCQs', icon: <Quiz />, path: '/mcqs' },
   { text: 'Learning Modules', icon: <School />, path: '/learning-modules' },
+  { text: 'Text Content', icon: <ArticleIcon />, path: '/text-content' },
   { text: 'Subscriptions', icon: <Subscriptions />, path: '/subscriptions' },
   { text: 'Subscription Analytics', icon: <TrendingUp />, path: '/subscription-analytics' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
