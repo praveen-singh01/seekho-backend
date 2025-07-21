@@ -21,15 +21,7 @@ export const adminService = {
     }
   },
 
-  // Categories
-  getCategories: async (page = 1, limit = 10) => {
-    try {
-      const response = await api.get(`/api/admin/categories?page=${page}&limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
+
 
   createCategory: async (categoryData) => {
     try {
@@ -95,12 +87,16 @@ export const adminService = {
     }
   },
 
-  // Topics
-  getTopics: async (page = 1, limit = 10, categoryId = '') => {
+  // Topics (Admin)
+  getTopics: async (params = {}) => {
     try {
-      const params = new URLSearchParams({ page, limit });
-      if (categoryId) params.append('category', categoryId);
-      const response = await api.get(`/api/topics?${params}`);
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/topics?${queryParams}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -109,7 +105,23 @@ export const adminService = {
 
   getTopic: async (id) => {
     try {
-      const response = await api.get(`/api/topics/${id}`);
+      const response = await api.get(`/api/admin/topics/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Categories (Admin)
+  getCategories: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/categories?${queryParams}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -453,6 +465,49 @@ export const adminService = {
         }
       });
       const response = await api.get(`/api/admin/answers/analytics?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Text Content management methods
+  getTextContent: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/text-content?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  createTextContent: async (textContentData) => {
+    try {
+      const response = await api.post('/api/admin/text-content', textContentData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateTextContent: async (id, textContentData) => {
+    try {
+      const response = await api.put(`/api/admin/text-content/${id}`, textContentData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteTextContent: async (id) => {
+    try {
+      const response = await api.delete(`/api/admin/text-content/${id}`);
       return response.data;
     } catch (error) {
       throw error;

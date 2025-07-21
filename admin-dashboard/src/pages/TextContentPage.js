@@ -23,43 +23,36 @@ import {
   Select,
   MenuItem,
   Grid,
-  Card,
-  CardContent,
   Tooltip,
   Alert,
   Snackbar,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
-  School as SchoolIcon,
-  DragIndicator as DragIcon
+  Article as ArticleIcon
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { adminService } from '../services/adminService';
 
-const LearningModulesPage = () => {
+const TextContentPage = () => {
   const { selectedApp } = useApp();
-  const [modules, setModules] = useState([]);
+  const [textContent, setTextContent] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [questionnaires, setQuestionnaires] = useState([]);
-  const [mcqs, setMCQs] = useState([]);
-  const [videos, setVideos] = useState([]);
   const [, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
+  const [selectedContentType, setSelectedContentType] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingModule, setEditingModule] = useState(null);
+  const [editingContent, setEditingContent] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Form state
@@ -67,18 +60,30 @@ const LearningModulesPage = () => {
     title: '',
     description: '',
     topic: '',
+    contentType: 'summary',
+    content: '',
+    contentFormat: 'plain',
     difficulty: 'beginner',
     isPremium: false,
-    content: []
+    tags: [],
+    resources: []
   });
 
-  useEffect(() => {
-    fetchModules();
-    fetchTopics();
-    fetchContent();
-  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedDifficulty]);
+  const contentTypes = [
+    { value: 'summary', label: 'Summary' },
+    { value: 'reading', label: 'Reading Material' },
+    { value: 'instructions', label: 'Instructions' },
+    { value: 'notes', label: 'Notes' },
+    { value: 'explanation', label: 'Explanation' },
+    { value: 'other', label: 'Other' }
+  ];
 
-  const fetchModules = async () => {
+  useEffect(() => {
+    fetchTextContent();
+    fetchTopics();
+  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedContentType, selectedDifficulty]);
+
+  const fetchTextContent = async () => {
     try {
       setLoading(true);
       const params = {
@@ -86,15 +91,16 @@ const LearningModulesPage = () => {
         limit: rowsPerPage,
         ...(searchTerm && { search: searchTerm }),
         ...(selectedTopic && { topic: selectedTopic }),
+        ...(selectedContentType && { contentType: selectedContentType }),
         ...(selectedDifficulty && { difficulty: selectedDifficulty })
       };
 
-      const response = await adminService.getLearningModules(params);
-      setModules(response.data);
+      const response = await adminService.getTextContent(params);
+      setTextContent(response.data);
       setTotalCount(response.pagination.total);
     } catch (error) {
-      console.error('Error fetching learning modules:', error);
-      showSnackbar('Error fetching learning modules', 'error');
+      console.error('Error fetching text content:', error);
+      showSnackbar('Error fetching text content', 'error');
     } finally {
       setLoading(false);
     }
@@ -109,126 +115,74 @@ const LearningModulesPage = () => {
     }
   };
 
-  const fetchContent = async () => {
-    try {
-      const [questionnairesRes, mcqsRes, videosRes] = await Promise.all([
-        adminService.getQuestionnaires({ limit: 100 }),
-        adminService.getMCQs({ limit: 100 }),
-        adminService.getVideos({ limit: 100 })
-      ]);
-      
-      setQuestionnaires(questionnairesRes.data);
-      setMCQs(mcqsRes.data);
-      setVideos(videosRes.data);
-    } catch (error) {
-      console.error('Error fetching content:', error);
-    }
-  };
-
-  const handleCreateModule = () => {
-    setEditingModule(null);
+  const handleCreateContent = () => {
+    setEditingContent(null);
     setFormData({
       title: '',
       description: '',
       topic: '',
+      contentType: 'summary',
+      content: '',
+      contentFormat: 'plain',
       difficulty: 'beginner',
       isPremium: false,
-      content: []
+      tags: [],
+      resources: []
     });
     setOpenDialog(true);
   };
 
-  const handleEditModule = (module) => {
-    setEditingModule(module);
+  const handleEditContent = (content) => {
+    setEditingContent(content);
     setFormData({
-      title: module.title,
-      description: module.description || '',
-      topic: module.topic._id,
-      difficulty: module.difficulty,
-      isPremium: module.isPremium,
-      content: module.content.map((item, index) => ({
-        contentType: item.contentType,
-        contentId: item.contentId,
-        contentModel: item.contentModel,
-        order: index,
-        isRequired: item.isRequired
-      }))
+      title: content.title,
+      description: content.description || '',
+      topic: content.topic._id,
+      contentType: content.contentType,
+      content: content.content,
+      contentFormat: content.contentFormat,
+      difficulty: content.difficulty,
+      isPremium: content.isPremium,
+      tags: content.tags || [],
+      resources: content.resources || []
     });
     setOpenDialog(true);
   };
 
-  const handleDeleteModule = async (id) => {
-    if (window.confirm('Are you sure you want to delete this learning module?')) {
+  const handleDeleteContent = async (id) => {
+    if (window.confirm('Are you sure you want to delete this text content?')) {
       try {
-        await adminService.deleteLearningModule(id);
-        showSnackbar('Learning module deleted successfully', 'success');
-        fetchModules();
+        await adminService.deleteTextContent(id);
+        showSnackbar('Text content deleted successfully', 'success');
+        fetchTextContent();
       } catch (error) {
-        console.error('Error deleting learning module:', error);
-        showSnackbar('Error deleting learning module', 'error');
+        console.error('Error deleting text content:', error);
+        showSnackbar('Error deleting text content', 'error');
       }
     }
   };
 
   const handleSubmit = async () => {
     try {
-      const moduleData = {
+      const contentData = {
         ...formData,
-        content: formData.content.map((item, index) => ({
-          ...item,
-          order: index
-        }))
+        tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(tag => tag.trim()) : formData.tags
       };
 
-      if (editingModule) {
-        await adminService.updateLearningModule(editingModule._id, moduleData);
-        showSnackbar('Learning module updated successfully', 'success');
+      if (editingContent) {
+        await adminService.updateTextContent(editingContent._id, contentData);
+        showSnackbar('Text content updated successfully', 'success');
       } else {
-        await adminService.createLearningModule(moduleData);
-        showSnackbar('Learning module created successfully', 'success');
+        await adminService.createTextContent(contentData);
+        showSnackbar('Text content created successfully', 'success');
       }
 
       setOpenDialog(false);
-      fetchModules();
+      fetchTextContent();
     } catch (error) {
-      console.error('Error saving learning module:', error);
-      showSnackbar('Error saving learning module', 'error');
+      console.error('Error saving text content:', error);
+      showSnackbar('Error saving text content', 'error');
     }
-  };
-
-  const addContent = (contentType, contentId, contentModel, title) => {
-    const newContent = {
-      contentType,
-      contentId,
-      contentModel,
-      title, // For display purposes
-      order: formData.content.length,
-      isRequired: true
-    };
-
-    setFormData({
-      ...formData,
-      content: [...formData.content, newContent]
-    });
-  };
-
-  const removeContent = (index) => {
-    const newContent = formData.content.filter((_, i) => i !== index);
-    setFormData({
-      ...formData,
-      content: newContent.map((item, i) => ({ ...item, order: i }))
-    });
-  };
-
-  const moveContent = (fromIndex, toIndex) => {
-    const newContent = [...formData.content];
-    const [movedItem] = newContent.splice(fromIndex, 1);
-    newContent.splice(toIndex, 0, movedItem);
-    
-    setFormData({
-      ...formData,
-      content: newContent.map((item, i) => ({ ...item, order: i }))
-    });
   };
 
   const showSnackbar = (message, severity = 'success') => {
@@ -244,12 +198,14 @@ const LearningModulesPage = () => {
     }
   };
 
-  const getContentTypeIcon = (type) => {
-    switch (type) {
-      case 'video': return '🎥';
-      case 'questionnaire': return '📝';
-      case 'mcq': return '❓';
-      default: return '📄';
+  const getContentTypeColor = (contentType) => {
+    switch (contentType) {
+      case 'summary': return 'primary';
+      case 'reading': return 'secondary';
+      case 'instructions': return 'warning';
+      case 'notes': return 'info';
+      case 'explanation': return 'success';
+      default: return 'default';
     }
   };
 
@@ -257,25 +213,25 @@ const LearningModulesPage = () => {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SchoolIcon /> Learning Modules
+          <ArticleIcon /> Text Content
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={handleCreateModule}
+          onClick={handleCreateContent}
           sx={{ borderRadius: 2 }}
         >
-          Create Module
+          Create Text Content
         </Button>
       </Box>
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               fullWidth
-              label="Search modules"
+              label="Search content"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               size="small"
@@ -300,6 +256,23 @@ const LearningModulesPage = () => {
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
+              <InputLabel>Content Type</InputLabel>
+              <Select
+                value={selectedContentType}
+                onChange={(e) => setSelectedContentType(e.target.value)}
+                label="Content Type"
+              >
+                <MenuItem value="">All Types</MenuItem>
+                {contentTypes.map((type) => (
+                  <MenuItem key={type.value} value={type.value}>
+                    {type.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
               <InputLabel>Difficulty</InputLabel>
               <Select
                 value={selectedDifficulty}
@@ -316,57 +289,51 @@ const LearningModulesPage = () => {
         </Grid>
       </Paper>
 
-      {/* Modules Table */}
+      {/* Content Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Title</TableCell>
               <TableCell>Topic</TableCell>
+              <TableCell>Content Type</TableCell>
               <TableCell>Difficulty</TableCell>
-              <TableCell>Content Items</TableCell>
-              <TableCell>Duration</TableCell>
+              <TableCell>Reading Time</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {modules.map((module) => (
-              <TableRow key={module._id}>
+            {textContent.map((content) => (
+              <TableRow key={content._id}>
                 <TableCell>
                   <Box>
-                    <Typography variant="subtitle2">{module.title}</Typography>
+                    <Typography variant="subtitle2">{content.title}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {module.description}
+                      {content.description}
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell>{module.topic?.title}</TableCell>
+                <TableCell>{content.topic?.title}</TableCell>
                 <TableCell>
                   <Chip
-                    label={module.difficulty}
-                    color={getDifficultyColor(module.difficulty)}
+                    label={content.contentType.toUpperCase()}
+                    color={getContentTypeColor(content.contentType)}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {module.metadata?.totalVideos > 0 && (
-                      <Chip label={`${module.metadata.totalVideos} Videos`} size="small" />
-                    )}
-                    {module.metadata?.totalQuestionnaires > 0 && (
-                      <Chip label={`${module.metadata.totalQuestionnaires} Q&A`} size="small" />
-                    )}
-                    {module.metadata?.totalMCQs > 0 && (
-                      <Chip label={`${module.metadata.totalMCQs} MCQs`} size="small" />
-                    )}
-                  </Box>
+                  <Chip
+                    label={content.difficulty}
+                    color={getDifficultyColor(content.difficulty)}
+                    size="small"
+                  />
                 </TableCell>
-                <TableCell>{module.estimatedDuration} min</TableCell>
+                <TableCell>{content.estimatedReadingTime} min</TableCell>
                 <TableCell>
                   <Chip
-                    label={module.isActive ? 'Active' : 'Inactive'}
-                    color={module.isActive ? 'success' : 'default'}
+                    label={content.isActive ? 'Active' : 'Inactive'}
+                    color={content.isActive ? 'success' : 'default'}
                     size="small"
                   />
                 </TableCell>
@@ -377,12 +344,12 @@ const LearningModulesPage = () => {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Edit">
-                    <IconButton size="small" onClick={() => handleEditModule(module)}>
+                    <IconButton size="small" onClick={() => handleEditContent(content)}>
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete">
-                    <IconButton size="small" onClick={() => handleDeleteModule(module._id)}>
+                    <IconButton size="small" onClick={() => handleDeleteContent(content._id)}>
                       <DeleteIcon />
                     </IconButton>
                   </Tooltip>
@@ -406,9 +373,9 @@ const LearningModulesPage = () => {
       </TableContainer>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="lg" fullWidth>
         <DialogTitle>
-          {editingModule ? 'Edit Learning Module' : 'Create New Learning Module'}
+          {editingContent ? 'Edit Text Content' : 'Create New Text Content'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -428,10 +395,10 @@ const LearningModulesPage = () => {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 multiline
-                rows={3}
+                rows={2}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <FormControl fullWidth required>
                 <InputLabel>Topic</InputLabel>
                 <Select
@@ -447,7 +414,23 @@ const LearningModulesPage = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Content Type</InputLabel>
+                <Select
+                  value={formData.contentType}
+                  onChange={(e) => setFormData({ ...formData, contentType: e.target.value })}
+                  label="Content Type"
+                >
+                  {contentTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      {type.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
               <FormControl fullWidth>
                 <InputLabel>Difficulty</InputLabel>
                 <Select
@@ -461,39 +444,58 @@ const LearningModulesPage = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Content Format</InputLabel>
+                <Select
+                  value={formData.contentFormat}
+                  onChange={(e) => setFormData({ ...formData, contentFormat: e.target.value })}
+                  label="Content Format"
+                >
+                  <MenuItem value="plain">Plain Text</MenuItem>
+                  <MenuItem value="markdown">Markdown</MenuItem>
+                  <MenuItem value="html">HTML</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isPremium}
+                    onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
+                  />
+                }
+                label="Premium Content"
+              />
+            </Grid>
             <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Content Items</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Add content items to this learning module. You can add videos, questionnaires, MCQs, and text content.
-              </Typography>
-              {formData.content.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', p: 2, textAlign: 'center' }}>
-                  No content items added yet. Create some content first, then come back to add them to this module.
-                </Typography>
-              ) : (
-                <List>
-                  {formData.content.map((item, index) => (
-                    <ListItem key={index}>
-                      <ListItemText
-                        primary={item.title || `${item.contentType} Content`}
-                        secondary={`Type: ${item.contentType} | Order: ${item.order}`}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton onClick={() => removeContent(index)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              )}
+              <TextField
+                fullWidth
+                label="Content"
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                multiline
+                rows={8}
+                required
+                helperText="Enter the main content. Use markdown formatting if selected above."
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Tags (comma separated)"
+                value={Array.isArray(formData.tags) ? formData.tags.join(', ') : formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                helperText="Enter tags separated by commas (e.g., grammar, tenses, beginner)"
+              />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
           <Button onClick={handleSubmit} variant="contained">
-            {editingModule ? 'Update' : 'Create'}
+            {editingContent ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -511,4 +513,4 @@ const LearningModulesPage = () => {
   );
 };
 
-export default LearningModulesPage;
+export default TextContentPage;
