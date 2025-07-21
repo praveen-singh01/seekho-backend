@@ -130,6 +130,148 @@ const validatePagination = [
   handleValidationErrors
 ];
 
+// Questionnaire validation rules
+const validateQuestionnaire = [
+  body('title')
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Questionnaire title must be between 2 and 200 characters'),
+  body('description')
+    .optional()
+    .isLength({ max: 1000 })
+    .withMessage('Description cannot exceed 1000 characters'),
+  body('topic')
+    .isMongoId()
+    .withMessage('Please provide a valid topic ID'),
+  body('questions')
+    .isArray({ min: 1 })
+    .withMessage('At least one question is required'),
+  body('questions.*.questionText')
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Question text must be between 5 and 500 characters'),
+  body('questions.*.questionType')
+    .optional()
+    .isIn(['short_answer', 'long_answer', 'essay'])
+    .withMessage('Question type must be short_answer, long_answer, or essay'),
+  body('questions.*.order')
+    .isInt({ min: 0 })
+    .withMessage('Question order must be a non-negative integer'),
+  body('difficulty')
+    .optional()
+    .isIn(['beginner', 'intermediate', 'advanced'])
+    .withMessage('Difficulty must be beginner, intermediate, or advanced'),
+  body('estimatedTime')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Estimated time must be at least 1 minute'),
+  handleValidationErrors
+];
+
+// MCQ validation rules
+const validateMCQ = [
+  body('title')
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('MCQ title must be between 2 and 200 characters'),
+  body('description')
+    .optional()
+    .isLength({ max: 1000 })
+    .withMessage('Description cannot exceed 1000 characters'),
+  body('topic')
+    .isMongoId()
+    .withMessage('Please provide a valid topic ID'),
+  body('questions')
+    .isArray({ min: 1 })
+    .withMessage('At least one question is required'),
+  body('questions.*.questionText')
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Question text must be between 5 and 500 characters'),
+  body('questions.*.options')
+    .isArray({ min: 4, max: 4 })
+    .withMessage('Each question must have exactly 4 options'),
+  body('questions.*.options.*.text')
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Option text must be between 1 and 200 characters'),
+  body('questions.*.order')
+    .isInt({ min: 0 })
+    .withMessage('Question order must be a non-negative integer'),
+  body('difficulty')
+    .optional()
+    .isIn(['beginner', 'intermediate', 'advanced'])
+    .withMessage('Difficulty must be beginner, intermediate, or advanced'),
+  body('estimatedTime')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Estimated time must be at least 1 minute'),
+  body('passingScore')
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Passing score must be between 0 and 100'),
+  handleValidationErrors
+];
+
+// Learning Module validation rules
+const validateLearningModule = [
+  body('title')
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Module title must be between 2 and 200 characters'),
+  body('description')
+    .optional()
+    .isLength({ max: 1000 })
+    .withMessage('Description cannot exceed 1000 characters'),
+  body('topic')
+    .isMongoId()
+    .withMessage('Please provide a valid topic ID'),
+  body('content')
+    .optional()
+    .isArray()
+    .withMessage('Content must be an array'),
+  body('content.*.contentType')
+    .optional()
+    .isIn(['video', 'questionnaire', 'mcq'])
+    .withMessage('Content type must be video, questionnaire, or mcq'),
+  body('content.*.contentId')
+    .optional()
+    .isMongoId()
+    .withMessage('Content ID must be a valid MongoDB ObjectId'),
+  body('content.*.order')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Content order must be a non-negative integer'),
+  body('difficulty')
+    .optional()
+    .isIn(['beginner', 'intermediate', 'advanced'])
+    .withMessage('Difficulty must be beginner, intermediate, or advanced'),
+  handleValidationErrors
+];
+
+// Answer submission validation rules
+const validateAnswerSubmission = [
+  body('answers')
+    .isArray({ min: 1 })
+    .withMessage('At least one answer is required'),
+  body('answers.*.questionIndex')
+    .isInt({ min: 0 })
+    .withMessage('Question index must be a non-negative integer'),
+  body('answers.*.textAnswer')
+    .optional()
+    .isLength({ max: 2000 })
+    .withMessage('Text answer cannot exceed 2000 characters'),
+  body('answers.*.selectedOption')
+    .optional()
+    .isInt({ min: 0, max: 3 })
+    .withMessage('Selected option must be between 0 and 3'),
+  body('answers.*.timeSpent')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Time spent must be a non-negative integer'),
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateUser,
@@ -138,5 +280,9 @@ module.exports = {
   validateVideo,
   validateSubscription,
   validateObjectId,
-  validatePagination
+  validatePagination,
+  validateQuestionnaire,
+  validateMCQ,
+  validateLearningModule,
+  validateAnswerSubmission
 };
