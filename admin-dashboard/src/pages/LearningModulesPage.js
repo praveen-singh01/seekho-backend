@@ -29,7 +29,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -55,6 +57,7 @@ const LearningModulesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingModule, setEditingModule] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -72,7 +75,7 @@ const LearningModulesPage = () => {
   useEffect(() => {
     fetchModules();
     fetchTopics();
-  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedDifficulty]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedDifficulty, selectedClass]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchModules = async () => {
     try {
@@ -82,7 +85,8 @@ const LearningModulesPage = () => {
         limit: rowsPerPage,
         ...(searchTerm && { search: searchTerm }),
         ...(selectedTopic && { topic: selectedTopic }),
-        ...(selectedDifficulty && { difficulty: selectedDifficulty })
+        ...(selectedDifficulty && { difficulty: selectedDifficulty }),
+        ...(selectedClass && { classNumber: selectedClass })
       };
 
       const response = await adminService.getLearningModules(params);
@@ -141,6 +145,7 @@ const LearningModulesPage = () => {
       description: '',
       topic: '',
       difficulty: 'beginner',
+      classNumber: '',
       isPremium: false,
       content: []
     });
@@ -157,6 +162,7 @@ const LearningModulesPage = () => {
       description: module.description || '',
       topic: module.topic._id,
       difficulty: module.difficulty,
+      classNumber: module.classNumber || '',
       isPremium: module.isPremium,
       content: module.content.map((item, index) => ({
         contentType: item.contentType,
@@ -361,6 +367,27 @@ const LearningModulesPage = () => {
               </Select>
             </FormControl>
           </Grid>
+          <Grid item xs={12} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Class</InputLabel>
+              <Select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                label="Class"
+              >
+                <MenuItem value="">All Classes</MenuItem>
+                <MenuItem value={1}>Class 1</MenuItem>
+                <MenuItem value={2}>Class 2</MenuItem>
+                <MenuItem value={3}>Class 3</MenuItem>
+                <MenuItem value={4}>Class 4</MenuItem>
+                <MenuItem value={5}>Class 5</MenuItem>
+                <MenuItem value={6}>Class 6</MenuItem>
+                <MenuItem value={7}>Class 7</MenuItem>
+                <MenuItem value={8}>Class 8</MenuItem>
+                <MenuItem value={9}>Class 9</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
       </Paper>
 
@@ -371,6 +398,7 @@ const LearningModulesPage = () => {
             <TableRow>
               <TableCell>Title</TableCell>
               <TableCell>Topic</TableCell>
+              <TableCell>Class</TableCell>
               <TableCell>Difficulty</TableCell>
               <TableCell>Content Items</TableCell>
               <TableCell>Duration</TableCell>
@@ -390,6 +418,20 @@ const LearningModulesPage = () => {
                   </Box>
                 </TableCell>
                 <TableCell>{module.topic?.title}</TableCell>
+                <TableCell>
+                  {module.classNumber ? (
+                    <Chip
+                      label={`Class ${module.classNumber}`}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No Class
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={module.difficulty}
@@ -508,6 +550,38 @@ const LearningModulesPage = () => {
                   <MenuItem value="advanced">Advanced</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Class Number</InputLabel>
+                <Select
+                  value={formData.classNumber}
+                  onChange={(e) => setFormData({ ...formData, classNumber: e.target.value })}
+                  label="Class Number"
+                >
+                  <MenuItem value="">No Class (General)</MenuItem>
+                  <MenuItem value={1}>Class 1</MenuItem>
+                  <MenuItem value={2}>Class 2</MenuItem>
+                  <MenuItem value={3}>Class 3</MenuItem>
+                  <MenuItem value={4}>Class 4</MenuItem>
+                  <MenuItem value={5}>Class 5</MenuItem>
+                  <MenuItem value={6}>Class 6</MenuItem>
+                  <MenuItem value={7}>Class 7</MenuItem>
+                  <MenuItem value={8}>Class 8</MenuItem>
+                  <MenuItem value={9}>Class 9</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.isPremium}
+                    onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
+                  />
+                }
+                label="Premium Content"
+              />
             </Grid>
             <Grid item xs={12}>
               <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Content Items</Typography>
