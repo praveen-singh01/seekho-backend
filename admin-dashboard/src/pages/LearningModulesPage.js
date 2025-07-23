@@ -112,6 +112,7 @@ const LearningModulesPage = () => {
   const fetchContentByType = async (contentType) => {
     try {
       let response;
+      console.log('Fetching content for type:', contentType);
       switch (contentType) {
         case 'questionnaire':
           response = await adminService.getQuestionnaires({ limit: 100 });
@@ -123,12 +124,13 @@ const LearningModulesPage = () => {
           response = await adminService.getTextContent({ limit: 100 });
           break;
         case 'video':
-          response = await adminService.getVideos({ limit: 100 });
+          response = await adminService.getVideos({ limit: 100, page: 1 });
           break;
         default:
           setAvailableContent([]);
           return;
       }
+      console.log('Content response:', response);
       setAvailableContent(response.data || []);
     } catch (error) {
       console.error('Error fetching content:', error);

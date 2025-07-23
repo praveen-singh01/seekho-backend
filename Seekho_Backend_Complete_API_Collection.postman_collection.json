@@ -1,0 +1,685 @@
+{
+  "info": {
+    "name": "Seekho Backend - Complete API Collection",
+    "description": "Complete API collection for Seekho Backend with all endpoints including new learning modules, class-based filtering, and multi-tenant support",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "com.gumbo.learning",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topicId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "videoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "moduleId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Web Authentication",
+          "item": [
+            {
+              "name": "Register User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "register"]
+                }
+              }
+            },
+            {
+              "name": "Login User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "Google OAuth",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/google",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "google"]
+                }
+              }
+            },
+            {
+              "name": "Get Current User",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Updated\",\n  \"bio\": \"Updated bio\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/profile",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "profile"]
+                }
+              }
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/logout",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "logout"]
+                }
+              }
+            },
+            {
+              "name": "Delete Account",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/account",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "account"]
+                }
+              }
+            },
+            {
+              "name": "Get User Stats",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/stats",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "stats"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Android Authentication",
+          "item": [
+            {
+              "name": "Android Google Auth",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Package-ID",
+                    "value": "{{packageId}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idToken\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6...\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/android/google",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "android", "google"]
+                }
+              }
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/android/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "android", "refresh"]
+                }
+              }
+            },
+            {
+              "name": "Get Android Config",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/android/config",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "android", "config"]
+                }
+              }
+            },
+            {
+              "name": "Android Logout",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/android/logout",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "android", "logout"]
+                }
+              }
+            },
+            {
+              "name": "Delete Android Account",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/android/account",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "android", "account"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Authentication",
+          "item": [
+            {
+              "name": "Admin Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "login"]
+                }
+              }
+            },
+            {
+              "name": "Get Admin Me",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "me"]
+                }
+              }
+            },
+            {
+              "name": "Create Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Admin\",\n  \"email\": \"john.admin@seekho.com\",\n  \"password\": \"AdminPass@123\",\n  \"username\": \"johnadmin\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/create",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "create"]
+                }
+              }
+            },
+            {
+              "name": "List Admin Users",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/list?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "list"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Remove Admin",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/remove/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "remove", "{{userId}}"]
+                }
+              }
+            },
+            {
+              "name": "Change Admin Password",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"OldPassword@123\",\n  \"newPassword\": \"NewPassword@123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/admin/change-password",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "admin", "change-password"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories?page=1&limit=10&search=&sort=order",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "sort",
+                  "value": "order"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Category",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Topics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}/topics?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}", "topics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Category Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Complete Data",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Updates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}/updates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}", "updates"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Topics",
+      "item": [
+        {
+          "name": "Get All Topics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/topics?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Topic",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/{{topicId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "{{topicId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Topic Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/{{topicId}}/videos?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "{{topicId}}", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Related Topics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/{{topicId}}/related",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "{{topicId}}", "related"]
+            }
+          }
+        },
+        {
+          "name": "Get Topic Progress",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/topics/{{topicId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "topics", "{{topicId}}", "progress"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Videos Content",
+      "item": [
+        {
+          "name": "Get All Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}"]
+            }
+          }
+        },
+        {
+          "name": "Search Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/search?q=javascript&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "javascript"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/popular",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "popular"]
+            }
+          }
+        },
+        {
+          "name": "Get New Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/new",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "new"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Stream URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "stream"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "info": {
+    "name": "Seekho Backend - API Collection Part 2",
+    "description": "Continuation of Seekho Backend API collection with Videos, Learning Modules, and Admin endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "com.gumbo.learning",
+      "type": "string"
+    },
+    {
+      "key": "videoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "moduleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionnaireId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mcqId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Videos",
+      "item": [
+        {
+          "name": "Get All Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Video",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}"]
+            }
+          }
+        },
+        {
+          "name": "Search Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/search?q=javascript&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "javascript"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/popular",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "popular"]
+            }
+          }
+        },
+        {
+          "name": "Get New Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/new",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "new"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Stream URL",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "stream"]
+            }
+          }
+        },
+        {
+          "name": "Get Related Videos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/related",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "related"]
+            }
+          }
+        },
+        {
+          "name": "Record Video View",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/view",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "view"]
+            }
+          }
+        },
+        {
+          "name": "Record Video Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 75,\n  \"duration\": 300\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "progress"]
+            }
+          }
+        },
+        {
+          "name": "Get Video Recommendations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}/recommendations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "recommendations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Learning Modules",
+      "item": [
+        {
+          "name": "Get All Learning Modules",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/learning-modules?page=1&limit=10&search=&topic=&difficulty=&isPremium=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "learning-modules"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "topic",
+                  "value": ""
+                },
+                {
+                  "key": "difficulty",
+                  "value": ""
+                },
+                {
+                  "key": "isPremium",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Learning Module",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/learning-modules/{{moduleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "learning-modules", "{{moduleId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Class-Based Modules (NEW)",
+      "item": [
+        {
+          "name": "Get Modules by Class",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/modules?class=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "modules"],
+              "query": [
+                {
+                  "key": "class",
+                  "value": "1",
+                  "description": "Class number (1-9)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Class 5 Modules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/modules?class=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "modules"],
+              "query": [
+                {
+                  "key": "class",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Class 8 Modules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Package-ID",
+                "value": "{{packageId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/modules?class=8",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "modules"],
+              "query": [
+                {
+                  "key": "class",
+                  "value": "8"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

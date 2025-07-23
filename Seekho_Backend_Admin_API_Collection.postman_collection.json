@@ -1,0 +1,364 @@
+{
+  "info": {
+    "name": "Seekho Backend - Admin API Collection",
+    "description": "Complete Admin API collection for Seekho Backend with all admin endpoints including new learning modules management with class-based filtering",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{adminToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "com.gumbo.learning",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topicId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "videoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "moduleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionnaireId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mcqId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&search=&status=&hasSubscription=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "hasSubscription",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Toggle User Status",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{userId}}/toggle-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{userId}}", "toggle-status"]
+            }
+          }
+        },
+        {
+          "name": "Get User Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{userId}}/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{userId}}", "analytics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Categories",
+      "item": [
+        {
+          "name": "Get Categories (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories?page=1&limit=20&search=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gaming\",\n  \"description\": \"Learn gaming strategies and techniques\",\n  \"color\": \"#FF6B6B\",\n  \"thumbnail\": \"https://s3.amazonaws.com/bucket/gaming.jpg\",\n  \"icon\": \"fas fa-gamepad\",\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Gaming\",\n  \"description\": \"Updated description\",\n  \"color\": \"#FF6B6B\",\n  \"order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Reorder Categories",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryOrders\": [\n    {\n      \"id\": \"507f1f77bcf86cd799439011\",\n      \"order\": 1\n    },\n    {\n      \"id\": \"507f1f77bcf86cd799439012\",\n      \"order\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/reorder",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "reorder"]
+            }
+          }
+        },
+        {
+          "name": "Get Category Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/{{categoryId}}/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "{{categoryId}}", "analytics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Topics",
+      "item": [
+        {
+          "name": "Get Topics (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/topics?page=1&limit=20&search=&category=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "topics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "category",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Topic (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/topics/{{topicId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "topics", "{{topicId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Topic",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"JavaScript Basics\",\n  \"description\": \"Learn the fundamentals of JavaScript\",\n  \"category\": \"{{categoryId}}\",\n  \"difficulty\": \"beginner\",\n  \"estimatedDuration\": 120,\n  \"thumbnail\": \"https://s3.amazonaws.com/bucket/js-basics.jpg\",\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/topics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "topics"]
+            }
+          }
+        },
+        {
+          "name": "Update Topic",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Advanced JavaScript\",\n  \"description\": \"Advanced JavaScript concepts\",\n  \"difficulty\": \"advanced\",\n  \"estimatedDuration\": 180\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/topics/{{topicId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "topics", "{{topicId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Topic",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/topics/{{topicId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "topics", "{{topicId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

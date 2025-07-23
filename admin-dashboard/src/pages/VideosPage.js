@@ -82,7 +82,13 @@ const VideosPage = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await adminService.getVideos(page + 1, rowsPerPage, selectedTopic);
+      const params = {
+        page: page + 1,
+        limit: rowsPerPage
+      };
+      if (selectedTopic) params.topic = selectedTopic;
+
+      const response = await adminService.getVideos(params);
       if (response.success) {
         setVideos(response.data || []);
         setTotalCount(response.pagination?.total || 0);

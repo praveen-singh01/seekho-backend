@@ -258,8 +258,8 @@ const validateLearningModule = [
     .withMessage('Content must be an array'),
   body('content.*.contentType')
     .optional()
-    .isIn(['video', 'questionnaire', 'mcq'])
-    .withMessage('Content type must be video, questionnaire, or mcq'),
+    .isIn(['video', 'questionnaire', 'mcq', 'text', 'summary', 'reading', 'instructions', 'notes', 'explanation'])
+    .withMessage('Content type must be video, questionnaire, mcq, or text content type'),
   body('content.*.contentId')
     .optional()
     .isMongoId()
