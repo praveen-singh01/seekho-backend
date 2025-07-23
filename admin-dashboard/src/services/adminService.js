@@ -138,11 +138,15 @@ export const adminService = {
   },
 
   // Videos
-  getVideos: async (page = 1, limit = 10, topicId = '') => {
+  getVideos: async (params = {}) => {
     try {
-      const params = new URLSearchParams({ page, limit });
-      if (topicId) params.append('topic', topicId);
-      const response = await api.get(`/api/videos?${params}`);
+      const queryParams = new URLSearchParams();
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== '') {
+          queryParams.append(key, params[key]);
+        }
+      });
+      const response = await api.get(`/api/admin/videos?${queryParams}`);
       return response.data;
     } catch (error) {
       throw error;

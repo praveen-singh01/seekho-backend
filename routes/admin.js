@@ -332,6 +332,58 @@ router.post('/topics', validateTopic, createTopic);
 router.put('/topics/:id', validateObjectId(), validateTopic, updateTopic);
 
 // Video management routes
+// @route   GET /api/admin/videos
+// @desc    Get all videos for admin
+// @access  Private/Admin
+router.get('/videos', validatePagination, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, topic, status } = req.query;
+    const Video = require('../models/Video');
+    const { getPackageFilter } = require('../config/packages');
+
+    const packageFilter = getPackageFilter(req.packageId);
+    const query = { ...packageFilter };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (topic) query.topic = topic;
+    if (status !== undefined) query.isActive = status === 'active';
+
+    const videos = await Video.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('topic', 'title slug')
+      .populate('uploadedBy', 'name')
+      .select('-__v');
+
+    const total = await Video.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: videos.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: videos
+    });
+  } catch (error) {
+    console.error('Get admin videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // @route   POST /api/admin/videos
 // @desc    Create new video
 // @access  Private/Admin
