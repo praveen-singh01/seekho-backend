@@ -77,6 +77,19 @@ const learningModuleSchema = new mongoose.Schema({
     enum: ['beginner', 'intermediate', 'advanced'],
     default: 'beginner'
   },
+  // Class number for class-based filtering (Bolo app)
+  classNumber: {
+    type: Number,
+    validate: {
+      validator: function(v) {
+        // Only validate if classNumber is provided
+        if (v === null || v === undefined) return true;
+        return Number.isInteger(v) && v >= 1 && v <= 9;
+      },
+      message: 'Class number must be an integer between 1 and 9'
+    },
+    index: true
+  },
   estimatedDuration: {
     type: Number, // in minutes
     default: 0
@@ -173,6 +186,8 @@ learningModuleSchema.index({ packageId: 1, slug: 1 }, { unique: true });
 learningModuleSchema.index({ packageId: 1, isActive: 1, isPremium: 1 });
 learningModuleSchema.index({ packageId: 1, title: 'text', description: 'text', tags: 'text' });
 learningModuleSchema.index({ packageId: 1, difficulty: 1 });
+// Index for class-based filtering (Bolo app)
+learningModuleSchema.index({ packageId: 1, classNumber: 1 });
 
 // Generate slug before saving
 learningModuleSchema.pre('save', function(next) {

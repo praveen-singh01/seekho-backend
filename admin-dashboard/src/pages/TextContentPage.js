@@ -81,7 +81,7 @@ const TextContentPage = () => {
   useEffect(() => {
     fetchTextContent();
     fetchTopics();
-  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedContentType, selectedDifficulty]);
+  }, [selectedApp, page, rowsPerPage, searchTerm, selectedTopic, selectedContentType, selectedDifficulty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTextContent = async () => {
     try {

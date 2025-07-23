@@ -31,6 +31,8 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const adminRoutes = require('./routes/admin');
 const userRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/upload');
+const onboardingRoutes = require('./routes/onboarding');
+const modulesRoutes = require('./routes/modules');
 const notificationRoutes = require('./routes/notifications');
 const webhookRoutes = require('./routes/webhooks');
 
@@ -181,6 +183,8 @@ app.use('/api/users', processPackageId, userRoutes);
 app.use('/api/upload', processPackageId, uploadRoutes);
 app.use('/api/notifications', processPackageId, notificationRoutes);
 app.use('/api/webhooks', optionalPackageId, webhookRoutes);
+app.use('/api/onboarding', processPackageId, onboardingRoutes);
+app.use('/api/modules', processPackageId, modulesRoutes);
 
 // Payment Microservice callback routes (no package ID middleware needed)
 app.use('/api', webhookRoutes);

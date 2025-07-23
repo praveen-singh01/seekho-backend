@@ -218,13 +218,21 @@ const register = async (req, res) => {
 
     // Check if user already exists with package ID validation
     const packageFilter = getPackageFilter(req.packageId);
-    const existingUser = await User.findOne({
+
+    // Build the query conditions
+    const orConditions = [{ email: email }];
+
+    // Only check username if it's provided
+    if (username) {
+      orConditions.push({ username: username });
+    }
+
+    const query = {
       ...packageFilter,
-      $or: [
-        { email: email },
-        { username: username }
-      ]
-    });
+      $or: orConditions
+    };
+
+    const existingUser = await User.findOne(query);
 
     if (existingUser) {
       return res.status(400).json({

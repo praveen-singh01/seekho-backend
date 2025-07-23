@@ -1898,7 +1898,7 @@ const updateLearningModule = async (req, res) => {
 // @access  Private/Admin
 const getLearningModules = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, topic, difficulty, status } = req.query;
+    const { page = 1, limit = 20, search, topic, difficulty, status, classNumber } = req.query;
 
     const packageFilter = getPackageFilter(req.packageId);
     const query = { ...packageFilter };
@@ -1912,6 +1912,7 @@ const getLearningModules = async (req, res) => {
 
     if (topic) query.topic = topic;
     if (difficulty) query.difficulty = difficulty;
+    if (classNumber) query.classNumber = parseInt(classNumber);
     if (status !== undefined) query.isActive = status === 'active';
 
     const modules = await LearningModule.find(query)

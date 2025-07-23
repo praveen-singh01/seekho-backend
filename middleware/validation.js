@@ -213,6 +213,32 @@ const validateMCQ = [
   handleValidationErrors
 ];
 
+// Onboarding validation rules (Bolo app)
+const validateOnboarding = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  body('number')
+    .matches(/^[6-9]\d{9}$/)
+    .withMessage('Please provide a valid 10-digit Indian phone number starting with 6, 7, 8, or 9'),
+  body('class')
+    .isInt({ min: 1, max: 9 })
+    .withMessage('Class must be an integer between 1 and 9'),
+  body('parentAge')
+    .isInt({ min: 18, max: 80 })
+    .withMessage('Parent age must be an integer between 18 and 80'),
+  handleValidationErrors
+];
+
+// Module query validation rules (Bolo app)
+const validateModuleQuery = [
+  query('class')
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Class must be an integer between 1 and 5'),
+  handleValidationErrors
+];
+
 // Learning Module validation rules
 const validateLearningModule = [
   body('title')
@@ -284,5 +310,7 @@ module.exports = {
   validateQuestionnaire,
   validateMCQ,
   validateLearningModule,
-  validateAnswerSubmission
+  validateAnswerSubmission,
+  validateOnboarding,
+  validateModuleQuery
 };

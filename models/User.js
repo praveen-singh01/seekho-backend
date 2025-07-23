@@ -31,6 +31,44 @@ const userSchema = new mongoose.Schema({
       'Please enter a valid email'
     ]
   },
+  // Phone number for onboarding (Bolo app)
+  number: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        // Only validate if number is provided
+        if (!v) return true;
+        // Indian phone number format: 10 digits
+        return /^[6-9]\d{9}$/.test(v);
+      },
+      message: 'Please provide a valid 10-digit Indian phone number'
+    },
+    index: true
+  },
+  // Class level for onboarding (Bolo app)
+  class: {
+    type: Number,
+    validate: {
+      validator: function(v) {
+        // Only validate if class is provided
+        if (v === null || v === undefined) return true;
+        return Number.isInteger(v) && v >= 1 && v <= 9;
+      },
+      message: 'Class must be an integer between 1 and 9'
+    }
+  },
+  // Parent age for onboarding (Bolo app)
+  parentAge: {
+    type: Number,
+    validate: {
+      validator: function(v) {
+        // Only validate if parentAge is provided
+        if (v === null || v === undefined) return true;
+        return Number.isInteger(v) && v >= 18 && v <= 80;
+      },
+      message: 'Parent age must be between 18 and 80'
+    }
+  },
   username: {
     type: String,
     sparse: true, // Allow multiple null values
@@ -141,6 +179,9 @@ userSchema.index({ packageId: 1, isActive: 1 });
 userSchema.index({ packageId: 1, email: 1 }, { unique: true });
 userSchema.index({ packageId: 1, username: 1 }, { unique: true, sparse: true });
 userSchema.index({ packageId: 1, googleId: 1 }, { unique: true, sparse: true });
+// Indexes for onboarding fields (Bolo app)
+userSchema.index({ packageId: 1, number: 1 }, { sparse: true });
+userSchema.index({ packageId: 1, class: 1 }, { sparse: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
