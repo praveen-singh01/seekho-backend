@@ -452,6 +452,9 @@ const LearningModulesPage = () => {
                     {module.metadata?.totalMCQs > 0 && (
                       <Chip label={`${module.metadata.totalMCQs} MCQs`} size="small" />
                     )}
+                    {module.metadata?.totalTextContent > 0 && (
+                      <Chip label={`${module.metadata.totalTextContent} Text`} size="small" />
+                    )}
                   </Box>
                 </TableCell>
                 <TableCell>{module.estimatedDuration} min</TableCell>
