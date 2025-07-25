@@ -59,6 +59,18 @@ const questionnaireSchema = new mongoose.Schema({
     maxLength: {
       type: Number,
       default: 500 // Maximum characters for answer
+    },
+    // Optional: Expected answers for auto-scoring
+    expectedAnswers: [{
+      type: String,
+      trim: true,
+      lowercase: true
+    }],
+    // Points for this question (for scoring)
+    points: {
+      type: Number,
+      default: 1,
+      min: [1, 'Points must be at least 1']
     }
   }],
   difficulty: {
@@ -69,6 +81,12 @@ const questionnaireSchema = new mongoose.Schema({
   estimatedTime: {
     type: Number, // in minutes
     default: 10
+  },
+  passingScore: {
+    type: Number,
+    default: 70, // percentage
+    min: [0, 'Passing score cannot be negative'],
+    max: [100, 'Passing score cannot exceed 100']
   },
   isActive: {
     type: Boolean,

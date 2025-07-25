@@ -2,7 +2,8 @@ const express = require('express');
 const {
   getQuestionnaires,
   getQuestionnaire,
-  submitAnswers
+  submitAnswers,
+  getQuestionnaireResults
 } = require('../controllers/questionnaireController');
 const { protect, optionalAuth } = require('../middleware/auth');
 const { validateObjectId, validateAnswerSubmission } = require('../middleware/validation');
@@ -27,6 +28,11 @@ router.get('/:id', validateObjectId(), optionalAuth, getQuestionnaire);
 // @desc    Submit questionnaire answers
 // @access  Private
 router.post('/:id/submit', validateObjectId(), validateAnswerSubmission, protect, submitAnswers);
+
+// @route   GET /api/questionnaires/:id/results
+// @desc    Get questionnaire results
+// @access  Private
+router.get('/:id/results', validateObjectId(), protect, getQuestionnaireResults);
 
 // Note: The route for getting questionnaires by topic is handled in topics.js
 // @route   GET /api/topics/:topicId/questionnaires
