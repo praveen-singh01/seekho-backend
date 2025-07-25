@@ -124,7 +124,7 @@ const getSingleTextContent = async (req, res) => {
     }
 
     // Add access information
-    const hasAccess = req.user ? textContent.hasAccess(req.user) : false;
+    const hasAccess = textContent.hasAccess(req.user);
     textContent._doc.hasAccess = hasAccess;
 
     // Increment view count if user has access
