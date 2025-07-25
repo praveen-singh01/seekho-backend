@@ -225,8 +225,19 @@ learningModuleSchema.methods.hasAccess = function(user) {
 
 // Get user's progress in this module
 learningModuleSchema.methods.getUserProgress = async function(userId) {
-  const UserAnswer = mongoose.model('UserAnswer');
-  const WatchHistory = mongoose.model('WatchHistory');
+  // Import models safely
+  let UserAnswer, WatchHistory;
+  try {
+    UserAnswer = mongoose.model('UserAnswer');
+  } catch (error) {
+    UserAnswer = require('./UserAnswer');
+  }
+
+  try {
+    WatchHistory = mongoose.model('WatchHistory');
+  } catch (error) {
+    WatchHistory = require('./WatchHistory');
+  }
   
   const progress = {
     totalItems: this.content.length,

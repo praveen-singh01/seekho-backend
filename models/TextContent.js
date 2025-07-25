@@ -166,13 +166,15 @@ textContentSchema.methods.updateMetadata = async function() {
 
 // Virtual for content preview (first 200 characters)
 textContentSchema.virtual('contentPreview').get(function() {
+  if (!this.content || typeof this.content !== 'string') return '';
   if (this.content.length <= 200) return this.content;
   return this.content.substring(0, 200) + '...';
 });
 
 // Virtual for word count
 textContentSchema.virtual('wordCount').get(function() {
-  return this.content.split(/\s+/).length;
+  if (!this.content || typeof this.content !== 'string') return 0;
+  return this.content.split(/\s+/).filter(word => word.length > 0).length;
 });
 
 module.exports = mongoose.model('TextContent', textContentSchema);

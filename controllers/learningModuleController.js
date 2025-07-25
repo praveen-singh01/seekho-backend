@@ -109,6 +109,7 @@ const getLearningModule = async (req, res) => {
   try {
     // Get module with package ID validation
     const packageFilter = getPackageFilter(req.packageId);
+
     const module = await LearningModule.findOne({
       _id: req.params.id,
       ...packageFilter
@@ -125,8 +126,13 @@ const getLearningModule = async (req, res) => {
     }
 
     // Add access information
-    const hasAccess = req.user ? module.hasAccess(req.user) : false;
-    module._doc.hasAccess = hasAccess;
+    try {
+      const hasAccess = req.user ? module.hasAccess(req.user) : false;
+      module._doc.hasAccess = hasAccess;
+    } catch (accessError) {
+      console.error('Error checking access:', accessError);
+      module._doc.hasAccess = false;
+    }
 
     // Populate content items manually - Teachers can add ANY type of content
     const populatedContent = [];
@@ -166,7 +172,7 @@ const getLearningModule = async (req, res) => {
               _id: contentItem.contentId,
               ...packageFilter,
               isActive: true
-            }).select('title slug contentType estimatedReadingTime isPremium metadata contentPreview wordCount');
+            }).select('title slug contentType content estimatedReadingTime isPremium metadata');
             break;
         }
 
@@ -180,13 +186,19 @@ const getLearningModule = async (req, res) => {
         console.error(`Error populating content ${contentItem.contentId}:`, err);
       }
     }
-    
+
     module._doc.populatedContent = populatedContent;
 
     // Get user progress if authenticated
     if (req.user) {
-      const progress = await module.getUserProgress(req.user._id);
-      module._doc.userProgress = progress;
+      try {
+        const progress = await module.getUserProgress(req.user._id);
+        module._doc.userProgress = progress;
+      } catch (progressError) {
+        console.error('Error getting user progress:', progressError);
+        // Continue without progress data
+        module._doc.userProgress = null;
+      }
     }
 
     res.status(200).json({
