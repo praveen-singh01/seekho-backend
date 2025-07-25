@@ -203,10 +203,13 @@ const submitAnswers = async (req, res) => {
       });
     }
 
-    // Process answers
+    // Process answers and calculate score if expected answers are provided
+    let totalPoints = 0;
+    let earnedPoints = 0;
+
     for (let answer of answers) {
       const { questionIndex, textAnswer, timeSpent } = answer;
-      
+
       if (questionIndex < 0 || questionIndex >= questionnaire.questions.length) {
         return res.status(400).json({
           success: false,
@@ -214,10 +217,41 @@ const submitAnswers = async (req, res) => {
         });
       }
 
+      const question = questionnaire.questions[questionIndex];
+      totalPoints += question.points || 1;
+
+      // Check if answer is correct (if expected answers are provided)
+      let isCorrect = null;
+      if (question.expectedAnswers && question.expectedAnswers.length > 0) {
+        const userAnswerNormalized = (textAnswer || '').toLowerCase().trim().replace(/[^\w\s]/g, '');
+        isCorrect = question.expectedAnswers.some(expected => {
+          const expectedNormalized = expected.toLowerCase().trim().replace(/[^\w\s]/g, '');
+          return expectedNormalized === userAnswerNormalized;
+        });
+
+        if (isCorrect) {
+          earnedPoints += question.points || 1;
+        }
+
+        console.log(`🔍 Question ${questionIndex + 1}:`);
+        console.log(`   User answer: "${textAnswer}"`);
+        console.log(`   Normalized: "${userAnswerNormalized}"`);
+        console.log(`   Expected: ${question.expectedAnswers}`);
+        console.log(`   Is correct: ${isCorrect}`);
+      }
+
       await userAnswer.addAnswer(questionIndex, {
         textAnswer: textAnswer || '',
+        isCorrect: isCorrect,
         timeSpent: timeSpent || 0
       });
+    }
+
+    // Calculate score if we have expected answers
+    if (totalPoints > 0) {
+      const score = Math.round((earnedPoints / totalPoints) * 100);
+      userAnswer.score = score;
+      userAnswer.correctAnswers = earnedPoints;
     }
 
     // Mark as completed
@@ -226,17 +260,96 @@ const submitAnswers = async (req, res) => {
     // Update questionnaire metadata
     await questionnaire.updateMetadata();
 
+    // Calculate results for questionnaires
+    const hasAutoScoring = questionnaire.questions.some(q => q.expectedAnswers && q.expectedAnswers.length > 0);
+    const results = {
+      submissionId: userAnswer._id,
+      completedAt: userAnswer.completedAt,
+      completionTime: userAnswer.completionTime,
+      totalQuestions: questionnaire.questions.length,
+      answeredQuestions: userAnswer.answers.length,
+      correctAnswers: userAnswer.correctAnswers || 0,
+      score: userAnswer.score || null,
+      passed: userAnswer.score ? userAnswer.score >= questionnaire.passingScore : null,
+      feedback: hasAutoScoring
+        ? `You scored ${userAnswer.score || 0}% (${userAnswer.correctAnswers || 0}/${questionnaire.questions.length} correct)`
+        : 'Your answers have been submitted for review. Results will be available after evaluation.'
+    };
+
     res.status(200).json({
       success: true,
       message: 'Answers submitted successfully',
-      data: {
-        submissionId: userAnswer._id,
-        completedAt: userAnswer.completedAt,
-        completionTime: userAnswer.completionTime
-      }
+      data: results
     });
   } catch (error) {
     console.error('Submit questionnaire answers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get questionnaire results
+// @route   GET /api/questionnaires/:id/results
+// @access  Private
+const getQuestionnaireResults = async (req, res) => {
+  try {
+    // Get questionnaire with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const questionnaire = await Questionnaire.findOne({
+      _id: req.params.id,
+      ...packageFilter,
+      isActive: true
+    });
+
+    if (!questionnaire) {
+      return res.status(404).json({
+        success: false,
+        message: 'Questionnaire not found'
+      });
+    }
+
+    // Get user's latest attempt
+    const userAnswer = await UserAnswer.findOne({
+      user: req.user._id,
+      contentId: questionnaire._id,
+      contentType: 'questionnaire',
+      packageId: req.packageId,
+      isCompleted: true
+    }).sort({ completedAt: -1 });
+
+    if (!userAnswer) {
+      return res.status(404).json({
+        success: false,
+        message: 'No completed attempt found'
+      });
+    }
+
+    // Build results
+    const results = {
+      submissionId: userAnswer._id,
+      completedAt: userAnswer.completedAt,
+      completionTime: userAnswer.completionTime,
+      totalQuestions: questionnaire.questions.length,
+      answeredQuestions: userAnswer.answers.length,
+      score: null, // Questionnaires don't have automatic scoring
+      passed: null, // Will be determined by manual review
+      feedback: 'Your answers have been submitted for review. Results will be available after evaluation.',
+      answers: userAnswer.answers.map(answer => ({
+        questionIndex: answer.questionIndex,
+        questionText: questionnaire.questions[answer.questionIndex]?.questionText,
+        textAnswer: answer.textAnswer,
+        timeSpent: answer.timeSpent
+      }))
+    };
+
+    res.status(200).json({
+      success: true,
+      data: results
+    });
+  } catch (error) {
+    console.error('Get questionnaire results error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -288,5 +401,6 @@ module.exports = {
   getQuestionnaires,
   getQuestionnaire,
   submitAnswers,
+  getQuestionnaireResults,
   getQuestionnairesByTopic
 };

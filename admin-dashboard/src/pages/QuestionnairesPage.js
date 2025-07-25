@@ -19,13 +19,14 @@ import {
   DialogActions,
   TextField,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Select,
   MenuItem,
   Grid,
   Card,
   CardContent,
-
+  Switch,
   Tooltip,
   Alert,
   Snackbar
@@ -62,6 +63,7 @@ const QuestionnairesPage = () => {
     topic: '',
     difficulty: 'beginner',
     estimatedTime: 10,
+    passingScore: 70,
     isPremium: false,
     questions: [
       {
@@ -70,7 +72,9 @@ const QuestionnairesPage = () => {
         isRequired: true,
         order: 0,
         hints: [],
-        maxLength: 500
+        maxLength: 500,
+        expectedAnswers: [],
+        points: 1
       }
     ]
   });
@@ -119,6 +123,7 @@ const QuestionnairesPage = () => {
       topic: '',
       difficulty: 'beginner',
       estimatedTime: 10,
+      passingScore: 70,
       isPremium: false,
       questions: [
         {
@@ -127,7 +132,9 @@ const QuestionnairesPage = () => {
           isRequired: true,
           order: 0,
           hints: [],
-          maxLength: 500
+          maxLength: 500,
+          expectedAnswers: [],
+          points: 1
         }
       ]
     });
@@ -205,7 +212,9 @@ const QuestionnairesPage = () => {
           isRequired: true,
           order: formData.questions.length,
           hints: [],
-          maxLength: 500
+          maxLength: 500,
+          expectedAnswers: [],
+          points: 1
         }
       ]
     });
@@ -216,6 +225,33 @@ const QuestionnairesPage = () => {
     setFormData({
       ...formData,
       questions: newQuestions.map((q, i) => ({ ...q, order: i }))
+    });
+  };
+
+  const addExpectedAnswer = (questionIndex) => {
+    const updatedQuestions = [...formData.questions];
+    updatedQuestions[questionIndex].expectedAnswers.push('');
+    setFormData({
+      ...formData,
+      questions: updatedQuestions
+    });
+  };
+
+  const removeExpectedAnswer = (questionIndex, answerIndex) => {
+    const updatedQuestions = [...formData.questions];
+    updatedQuestions[questionIndex].expectedAnswers.splice(answerIndex, 1);
+    setFormData({
+      ...formData,
+      questions: updatedQuestions
+    });
+  };
+
+  const updateExpectedAnswer = (questionIndex, answerIndex, value) => {
+    const updatedQuestions = [...formData.questions];
+    updatedQuestions[questionIndex].expectedAnswers[answerIndex] = value;
+    setFormData({
+      ...formData,
+      questions: updatedQuestions
     });
   };
 
@@ -444,6 +480,28 @@ const QuestionnairesPage = () => {
                 inputProps={{ min: 1 }}
               />
             </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Passing Score (%)"
+                type="number"
+                value={formData.passingScore}
+                onChange={(e) => setFormData({ ...formData, passingScore: parseInt(e.target.value) })}
+                inputProps={{ min: 0, max: 100 }}
+                helperText="Minimum score required to pass (0-100%)"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isPremium}
+                    onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
+                  />
+                }
+                label="Premium Content"
+              />
+            </Grid>
 
             {/* Questions Section */}
             <Grid item xs={12}>
@@ -494,6 +552,53 @@ const QuestionnairesPage = () => {
                           onChange={(e) => updateQuestion(index, 'maxLength', parseInt(e.target.value))}
                           inputProps={{ min: 10 }}
                         />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Points"
+                          type="number"
+                          value={question.points}
+                          onChange={(e) => updateQuestion(index, 'points', parseInt(e.target.value))}
+                          inputProps={{ min: 1 }}
+                          helperText="Points awarded for correct answer"
+                        />
+                      </Grid>
+
+                      {/* Expected Answers Section */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                          Expected Answers (for auto-scoring)
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                          Add expected answers to enable automatic scoring. Leave empty for manual review.
+                        </Typography>
+                        {question.expectedAnswers.map((answer, answerIndex) => (
+                          <Box key={answerIndex} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              placeholder={`Expected answer ${answerIndex + 1}`}
+                              value={answer}
+                              onChange={(e) => updateExpectedAnswer(index, answerIndex, e.target.value)}
+                            />
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => removeExpectedAnswer(index, answerIndex)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
+                        ))}
+                        <Button
+                          size="small"
+                          startIcon={<AddIcon />}
+                          onClick={() => addExpectedAnswer(index)}
+                          sx={{ mt: 1 }}
+                        >
+                          Add Expected Answer
+                        </Button>
                       </Grid>
                     </Grid>
                   </CardContent>
