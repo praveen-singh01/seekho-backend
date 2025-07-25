@@ -16,7 +16,7 @@ async function testAdminQuestionnaireCreation() {
 
     console.log('\n📝 Step 2: Create questionnaire with expected answers');
     const questionnaireData = {
-      title: 'Advanced English Grammar Test',
+      title: `Advanced English Grammar Test ${Date.now()}`,
       description: 'Test your advanced English grammar knowledge with auto-scoring',
       topic: '687e8635f132c7fb7db172f2', // Basic Tenses topic
       difficulty: 'intermediate',
