@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dashboard Auth</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Admin Dashboard Auth Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const BASE_URL = 'http://localhost:8000';
+        const resultsDiv = document.getElementById('results');
+        
+        function log(message) {
+            console.log(message);
+            resultsDiv.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        async function testAuth() {
+            try {
+                log('🔐 Step 1: Admin Login');
+                
+                // Step 1: Login as admin
+                const loginResponse = await axios.post(`${BASE_URL}/api/auth/admin/login`, {
+                    username: 'superadmin',
+                    password: 'superadmin@123'
+                });
+
+                if (!loginResponse.data.success) {
+                    throw new Error('Login failed: ' + loginResponse.data.message);
+                }
+
+                const token = loginResponse.data.data.token;
+                log('✅ Login successful, token: ' + token.substring(0, 20) + '...');
+                
+                // Store token like the dashboard would
+                localStorage.setItem('adminToken', token);
+                localStorage.setItem('selectedApp', 'com.gumbo.english');
+                
+                // Step 2: Test authenticated request like dashboard would make
+                log('📚 Step 2: Testing authenticated request');
+                
+                const api = axios.create({
+                    baseURL: BASE_URL,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'X-Package-ID': 'com.gumbo.english'
+                    }
+                });
+                
+                const textContentResponse = await api.get('/api/admin/text-content');
+                log('✅ Text content fetched: ' + textContentResponse.data.data.length + ' items');
+                
+                // Step 3: Test learning module creation like dashboard would
+                log('📖 Step 3: Testing learning module creation');
+                
+                const moduleData = {
+                    title: "Dashboard Test Module",
+                    description: "Test from dashboard simulation",
+                    topic: "6880ac6e7a4c155f5118b478", // Use topic from previous test
+                    difficulty: "beginner",
+                    classNumber: 1,
+                    isPremium: false,
+                    content: [
+                        {
+                            contentType: "text",
+                            contentId: "687e8cba822a95065d577073", // Use text content from previous test
+                            contentModel: "TextContent",
+                            title: "Test Content",
+                            order: 0,
+                            isRequired: true
+                        }
+                    ]
+                };
+                
+                const createResponse = await api.post('/api/admin/learning-modules', moduleData);
+                log('✅ Learning module created successfully!');
+                log('Module ID: ' + createResponse.data.data._id);
+                
+            } catch (error) {
+                log('❌ Error: ' + error.message);
+                if (error.response) {
+                    log('Status: ' + error.response.status);
+                    log('Response: ' + JSON.stringify(error.response.data));
+                }
+            }
+        }
+        
+        // Run test when page loads
+        testAuth();
+    </script>
+</body>
+</html>
