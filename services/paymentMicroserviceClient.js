@@ -198,14 +198,11 @@ class PaymentMicroserviceClient {
    * @returns {Promise<Object>} Order data
    */
   async createOrder(userId, packageId, amount, currency = 'INR', paymentContext = {}) {
-    // Convert paise to rupees for payment microservice
-    const amountInRupees = Math.round(amount / 100);
-
+    // ✅ FIXED: Payment microservice expects amount in paise, not rupees
     console.log('Creating payment order via payment microservice', {
       userId,
       packageId,
-      originalAmountInPaise: amount,
-      amountInRupees: amountInRupees,
+      amountInPaise: amount,
       currency,
       baseUrl: this.baseUrl
     });
@@ -213,7 +210,7 @@ class PaymentMicroserviceClient {
     const apiCall = async () => {
       return await this.axiosInstance.post('/api/payment/order', {
         userId,
-        amount: amountInRupees, // Send amount in rupees
+        amount: amount, // ✅ FIXED: Send amount in paise directly
         currency,
         paymentContext
       }, {
@@ -227,7 +224,8 @@ class PaymentMicroserviceClient {
       console.log('Payment order created successfully', {
         userId,
         packageId,
-        orderId: response.data.data.orderId
+        orderId: response.data.data.orderId,
+        amountInPaise: amount
       });
 
       return response.data;
