@@ -198,10 +198,14 @@ class PaymentMicroserviceClient {
    * @returns {Promise<Object>} Order data
    */
   async createOrder(userId, packageId, amount, currency = 'INR', paymentContext = {}) {
+    // Convert paise to rupees for payment microservice
+    const amountInRupees = Math.round(amount / 100);
+
     console.log('Creating payment order via payment microservice', {
       userId,
       packageId,
-      amount,
+      originalAmountInPaise: amount,
+      amountInRupees: amountInRupees,
       currency,
       baseUrl: this.baseUrl
     });
@@ -209,10 +213,10 @@ class PaymentMicroserviceClient {
     const apiCall = async () => {
       return await this.axiosInstance.post('/api/payment/order', {
         userId,
-        amount,
+        amount: amountInRupees, // Send amount in rupees
         currency,
         paymentContext
-      }, { 
+      }, {
         headers: this.getHeaders(userId, packageId)
       });
     };
@@ -369,6 +373,63 @@ class PaymentMicroserviceClient {
       });
       
       throw new Error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to cancel subscription');
+    }
+  }
+
+  /**
+   * Verify payment success by fetching status from Razorpay
+   * @param {string} userId - User ID
+   * @param {string} packageId - Package ID (com.gumbo.learning or com.gumbo.english)
+   * @param {Object} verificationData - Verification data
+   * @param {string} [verificationData.orderId] - Internal order ID
+   * @param {string} [verificationData.subscriptionId] - Internal subscription ID
+   * @param {string} [verificationData.razorpayOrderId] - Razorpay order ID
+   * @param {string} [verificationData.razorpaySubscriptionId] - Razorpay subscription ID
+   * @returns {Promise<Object>} Verification result
+   */
+  async verifyPaymentSuccess(userId, packageId, verificationData) {
+    console.log('Verifying payment success via payment microservice', {
+      userId,
+      packageId,
+      verificationData,
+      baseUrl: this.baseUrl
+    });
+
+    const apiCall = async () => {
+      return await this.axiosInstance.post('/api/payment/verify-success', verificationData, {
+        headers: this.getHeaders(userId, packageId)
+      });
+    };
+
+    try {
+      const response = await this.executeWithRetry(apiCall);
+
+      console.log('Payment verification successful:', {
+        userId,
+        packageId,
+        success: response.data.success,
+        type: response.data.data?.type,
+        status: response.data.data?.status,
+        verified: response.data.data?.verified,
+        activated: response.data.data?.activated
+      });
+
+      return {
+        success: response.data.success,
+        message: response.data.message,
+        data: response.data.data,
+        timestamp: response.data.timestamp
+      };
+
+    } catch (error) {
+      console.error('Payment verification failed:', {
+        userId,
+        packageId,
+        verificationData,
+        error: error.response?.data || error.message
+      });
+
+      throw new Error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to verify payment');
     }
   }
 }
