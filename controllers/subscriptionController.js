@@ -258,6 +258,60 @@ const createOrder = async (req, res) => {
             paymentContext
           );
 
+          // ✅ FIXED: Store subscription locally for customer optimization
+          console.log('🔍 DEBUG: Creating local subscription record for customer optimization');
+          try {
+            const Subscription = require('../models/Subscription');
+
+            // Create local subscription record using existing schema fields
+            const localSubscription = new Subscription({
+              packageId: req.packageId,
+              user: req.user.id,
+              plan: plan,
+              status: 'active', // Microservice subscription is created
+              startDate: new Date(),
+              endDate: new Date(Date.now() + (plan === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000),
+              amount: planConfig.amount,
+              currency: planConfig.currency,
+              paymentMethod: 'razorpay',
+
+              // Use existing Razorpay fields
+              razorpaySubscriptionId: subscriptionResponse.data.razorpaySubscriptionId,
+              razorpayPlanId: planConfig.planId,
+              isRecurring: true,
+              subscriptionType: 'recurring',
+
+              // Store microservice data in metadata
+              metadata: {
+                microserviceSubscriptionId: subscriptionResponse.data.subscriptionId,
+                source: 'microservice',
+                customerEmail: req.user.email,
+                customerPhone: req.user.phone,
+                planId: planConfig.planId,
+                subscriptionType: paymentContext.subscriptionType,
+                billingCycle: paymentContext.billingCycle,
+                createdVia: 'payment_microservice'
+              },
+
+              // Required fields (using placeholder values)
+              paymentId: 'microservice_' + subscriptionResponse.data.subscriptionId,
+              orderId: 'microservice_order_' + Date.now()
+            });
+
+            await localSubscription.save();
+
+            console.log('✅ DEBUG: Local subscription record created:', {
+              localId: localSubscription._id,
+              microserviceId: subscriptionResponse.data.subscriptionId,
+              userId: req.user.id,
+              packageId: req.packageId
+            });
+
+          } catch (localSaveError) {
+            console.error('⚠️ WARNING: Failed to save local subscription record:', localSaveError);
+            // Don't fail the request - microservice subscription was successful
+          }
+
           return res.status(200).json({
             success: true,
             data: {
@@ -722,10 +776,103 @@ const createTrialWithMandate = async (req, res) => {
   });
 };
 
+// @desc    Verify payment success using payment microservice
+// @route   POST /api/subscriptions/verify-success
+// @access  Private
+const verifyPaymentSuccess = async (req, res) => {
+  try {
+    const { orderId, subscriptionId, razorpayOrderId, razorpaySubscriptionId } = req.body;
+    const userId = req.user.id;
+    const packageId = req.packageId || 'com.gumbo.learning'; // Default to learning app
+
+    // Validate that at least one ID is provided
+    if (!orderId && !subscriptionId && !razorpayOrderId && !razorpaySubscriptionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one of orderId, subscriptionId, razorpayOrderId, or razorpaySubscriptionId is required'
+      });
+    }
+
+    console.log('Payment verification request:', {
+      userId,
+      packageId,
+      orderId,
+      subscriptionId,
+      razorpayOrderId,
+      razorpaySubscriptionId
+    });
+
+    // Check if payment microservice is enabled
+    if (!isMicroserviceEnabled()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment microservice is not enabled'
+      });
+    }
+
+    // Prepare verification data
+    const verificationData = {};
+    if (orderId) verificationData.orderId = orderId;
+    if (subscriptionId) verificationData.subscriptionId = subscriptionId;
+    if (razorpayOrderId) verificationData.razorpayOrderId = razorpayOrderId;
+    if (razorpaySubscriptionId) verificationData.razorpaySubscriptionId = razorpaySubscriptionId;
+
+    // Call payment microservice to verify payment
+    const verificationResult = await paymentMicroserviceClient.verifyPaymentSuccess(
+      userId,
+      packageId,
+      verificationData
+    );
+
+    if (verificationResult.success) {
+      console.log('Payment verification successful:', {
+        userId,
+        packageId,
+        type: verificationResult.data?.type,
+        status: verificationResult.data?.status,
+        verified: verificationResult.data?.verified,
+        activated: verificationResult.data?.activated
+      });
+
+      return res.json({
+        success: true,
+        message: verificationResult.message,
+        data: {
+          type: verificationResult.data?.type,
+          status: verificationResult.data?.status,
+          verified: verificationResult.data?.verified,
+          activated: verificationResult.data?.activated,
+          timestamp: verificationResult.timestamp
+        }
+      });
+    } else {
+      console.log('Payment verification failed:', {
+        userId,
+        packageId,
+        message: verificationResult.message
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: verificationResult.message || 'Payment verification failed',
+        data: verificationResult.data
+      });
+    }
+
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error during payment verification'
+    });
+  }
+};
+
 module.exports = {
   getPlans,
   createOrder,
   verifyPayment,
+  verifyPaymentSuccess,
   getStatus,
   cancelSubscription,
   getHistory,

@@ -3,6 +3,7 @@ const {
   getPlans,
   createOrder,
   verifyPayment,
+  verifyPaymentSuccess,
   getStatus,
   cancelSubscription,
   getHistory,
@@ -30,9 +31,14 @@ router.get('/plans', optionalAuth, getPlans);
 router.post('/create-order', protect, createOrder);
 
 // @route   POST /api/subscriptions/verify-payment
-// @desc    Verify payment and create subscription
+// @desc    Verify payment and create subscription (Legacy)
 // @access  Private
 router.post('/verify-payment', protect, verifyPayment);
+
+// @route   POST /api/subscriptions/verify-success
+// @desc    Verify payment success using payment microservice
+// @access  Private
+router.post('/verify-success', protect, verifyPaymentSuccess);
 
 // @route   GET /api/subscriptions/status
 // @desc    Get user's subscription status
