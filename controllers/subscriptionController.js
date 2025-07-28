@@ -195,6 +195,9 @@ const createOrder = async (req, res) => {
           amountInRupees: planConfig.amount / 100
         });
 
+        // ✅ FIXED: Check for existing razorpayCustomerId for idempotency
+        const existingCustomerId = req.user.razorpayCustomerId;
+
         const paymentContext = {
           subscriptionType: 'premium',
           billingCycle: plan,
@@ -205,8 +208,16 @@ const createOrder = async (req, res) => {
             userPhone: req.user.phone || req.body.phone || '9999999999',
             userId: req.user.id,
             packageId: req.packageId
-          }
+          },
+          // ✅ FIXED: Pass existing customer ID to skip customer creation
+          existingCustomerId: existingCustomerId
         };
+
+        console.log('🔍 DEBUG: Customer optimization check:', {
+          userId: req.user.id,
+          existingCustomerId: existingCustomerId,
+          hasExistingCustomer: !!existingCustomerId
+        });
 
         if (!recurring) {
           // Create one-time order via microservice
@@ -306,6 +317,20 @@ const createOrder = async (req, res) => {
               userId: req.user.id,
               packageId: req.packageId
             });
+
+            // ✅ FIXED: Store razorpayCustomerId in User model for customer optimization
+            if (subscriptionResponse.data.razorpayCustomerId) {
+              const User = require('../models/User');
+              await User.updateOne(
+                { _id: req.user.id },
+                { razorpayCustomerId: subscriptionResponse.data.razorpayCustomerId }
+              );
+
+              console.log('✅ DEBUG: Razorpay customer ID stored in user:', {
+                userId: req.user.id,
+                razorpayCustomerId: subscriptionResponse.data.razorpayCustomerId
+              });
+            }
 
           } catch (localSaveError) {
             console.error('⚠️ WARNING: Failed to save local subscription record:', localSaveError);

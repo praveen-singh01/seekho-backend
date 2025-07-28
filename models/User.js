@@ -114,6 +114,12 @@ const userSchema = new mongoose.Schema({
     ref: 'Subscription',
     default: null
   },
+  // ✅ FIXED: Store Razorpay customer ID for customer optimization
+  razorpayCustomerId: {
+    type: String,
+    default: null,
+    index: true // Index for fast lookups during customer optimization
+  },
   // Trial tracking
   hasUsedTrial: {
     type: Boolean,
