@@ -484,6 +484,189 @@ const getBookmarks = async (req, res) => {
   }
 };
 
+// ===== NEW ENHANCED STATS FUNCTIONS =====
+
+// @desc    Update user statistics based on activity
+// @route   POST /api/users/stats/update
+// @access  Private
+const updateUserStats = async (req, res) => {
+  try {
+    const {
+      activityType,
+      contentId = null,
+      contentType = null,
+      timeSpent = 0,
+      score = null
+    } = req.body;
+
+    // Validate activity type
+    const validActivityTypes = [
+      'video_watched',
+      'content_completed',
+      'test_passed',
+      'login',
+      'favorite_added',
+      'bookmark_added',
+      'comment_posted',
+      'share_created'
+    ];
+
+    if (!validActivityTypes.includes(activityType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid activity type'
+      });
+    }
+
+    // Get content title if contentId is provided
+    let contentTitle = '';
+    if (contentId && contentType) {
+      const packageFilter = getPackageFilter(req.packageId);
+      let content = null;
+
+      switch (contentType) {
+        case 'video':
+          const Video = require('../models/Video');
+          content = await Video.findOne({ _id: contentId, ...packageFilter });
+          break;
+        case 'text':
+          const TextContent = require('../models/TextContent');
+          content = await TextContent.findOne({ _id: contentId, ...packageFilter });
+          break;
+        case 'mcq':
+          const MCQ = require('../models/MCQ');
+          content = await MCQ.findOne({ _id: contentId, ...packageFilter });
+          break;
+        case 'questionnaire':
+          const Questionnaire = require('../models/Questionnaire');
+          content = await Questionnaire.findOne({ _id: contentId, ...packageFilter });
+          break;
+      }
+
+      if (content) {
+        contentTitle = content.title;
+      }
+    }
+
+    // Update user stats
+    const UserStats = require('../models/UserStats');
+    const updatedStats = await UserStats.updateUserStats(req.user.id, req.packageId, activityType, {
+      contentId,
+      contentType,
+      contentTitle,
+      timeSpent,
+      score
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'User statistics updated successfully',
+      data: {
+        currentStreak: updatedStats.currentStreak,
+        lastActivityAt: updatedStats.lastActivityAt,
+        newAchievements: updatedStats.achievements.slice(-1) // Return latest achievement if any
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating statistics'
+    });
+  }
+};
+
+// @desc    Get comprehensive user statistics including progress aggregation
+// @route   GET /api/users/stats/detailed
+// @access  Private
+const getDetailedUserStats = async (req, res) => {
+  try {
+    const UserStats = require('../models/UserStats');
+    const UserProgress = require('../models/UserProgress');
+    const LearningModule = require('../models/LearningModule');
+
+    // Get or create user stats
+    const userStats = await UserStats.getOrCreateUserStats(req.user.id, req.packageId);
+
+    // Get progress statistics
+    const progressStats = await UserProgress.getUserStats(req.user.id, req.packageId);
+
+    // Get module progress
+    const packageFilter = getPackageFilter(req.packageId);
+    const modules = await LearningModule.find({ ...packageFilter, isActive: true });
+
+    const progressByModule = {};
+    for (const module of modules) {
+      const contentIds = module.content.map(item => item.contentId);
+      const moduleProgress = await UserProgress.getBulkProgress(
+        req.user.id,
+        contentIds,
+        req.packageId
+      );
+
+      const totalContent = module.content.length;
+      const completedContent = Object.values(moduleProgress).filter(
+        progress => progress.status === 'completed'
+      ).length;
+
+      progressByModule[module._id] = {
+        moduleName: module.title,
+        completedContent,
+        totalContent,
+        progressPercentage: totalContent > 0 ? Math.round((completedContent / totalContent) * 100) : 0
+      };
+    }
+
+    // Combine all statistics
+    const detailedStats = {
+      // Basic stats
+      videosWatched: userStats.videosWatched,
+      totalWatchTime: userStats.totalWatchTime,
+      completedCourses: userStats.completedCourses,
+      favoriteVideos: userStats.favoriteVideos,
+      totalBookmarks: userStats.totalBookmarks,
+      currentStreak: userStats.currentStreak,
+      longestStreak: userStats.longestStreak,
+
+      // Enhanced stats
+      averageProgress: progressStats.averageProgress || 0,
+      totalContentAccessed: userStats.totalContentAccessed,
+      testsCompleted: userStats.testsCompleted,
+      averageTestScore: userStats.averageTestScore,
+
+      // Social stats
+      totalShares: userStats.totalShares,
+      totalComments: userStats.totalComments,
+
+      // Progress by module
+      progressByModule,
+
+      // Recent activity
+      recentActivity: userStats.recentActivity,
+
+      // Achievements
+      achievements: userStats.achievements,
+
+      // Activity tracking
+      lastActivityAt: userStats.lastActivityAt,
+      joinedDate: req.user.createdAt
+    };
+
+    res.status(200).json({
+      success: true,
+      data: detailedStats
+    });
+
+  } catch (error) {
+    console.error('Get detailed user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error retrieving detailed statistics'
+    });
+  }
+};
+
 module.exports = {
   getWatchHistory,
   addFavorite,
@@ -494,5 +677,8 @@ module.exports = {
   getUserStats,
   addBookmark,
   removeBookmark,
-  getBookmarks
+  getBookmarks,
+  // New enhanced stats functions
+  updateUserStats,
+  getDetailedUserStats
 };

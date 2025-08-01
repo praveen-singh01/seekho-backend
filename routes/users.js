@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect } = require('../middleware/auth');
-const { validateObjectId } = require('../middleware/validation');
+const { validateObjectId, validateStatsUpdate } = require('../middleware/validation');
 const {
   getWatchHistory,
   addFavorite,
@@ -11,7 +11,10 @@ const {
   getUserStats,
   addBookmark,
   removeBookmark,
-  getBookmarks
+  getBookmarks,
+  // New enhanced stats functions
+  updateUserStats,
+  getDetailedUserStats
 } = require('../controllers/userController');
 const User = require('../models/User');
 const Video = require('../models/Video');
@@ -134,6 +137,18 @@ router.get('/me/watchlist', protect, async (req, res) => {
     });
   }
 });
+
+// ===== NEW ENHANCED STATS ROUTES =====
+
+// @route   POST /api/users/stats/update
+// @desc    Update user statistics based on activity
+// @access  Private
+router.post('/stats/update', protect, validateStatsUpdate, updateUserStats);
+
+// @route   GET /api/users/stats/detailed
+// @desc    Get comprehensive user statistics including progress aggregation
+// @access  Private
+router.get('/stats/detailed', protect, getDetailedUserStats);
 
 // @route   GET /api/users/me/progress
 // @desc    Get user's learning progress (placeholder for future implementation)
