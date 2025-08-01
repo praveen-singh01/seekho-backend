@@ -29,6 +29,11 @@ const userBookmarkSchema = new mongoose.Schema({
     maxlength: [500, 'Note cannot exceed 500 characters'],
     default: null
   },
+  timestamp: {
+    type: Number, // Video position in seconds
+    default: null,
+    min: 0
+  },
   addedAt: {
     type: Date,
     default: Date.now

@@ -3,6 +3,11 @@ const Topic = require('../models/Topic');
 const Category = require('../models/Category');
 const UserProgress = require('../models/UserProgress');
 const WatchHistory = require('../models/WatchHistory');
+const VideoComment = require('../models/VideoComment');
+const VideoShare = require('../models/VideoShare');
+const UserFavorite = require('../models/UserFavorite');
+const UserBookmark = require('../models/UserBookmark');
+const UserStats = require('../models/UserStats');
 const { getPackageFilter } = require('../config/packages');
 
 // @desc    Get all videos
@@ -712,6 +717,381 @@ const getNewVideos = async (req, res) => {
   }
 };
 
+// ===== NEW SOCIAL FEATURES =====
+
+// @desc    Share a video and generate shareable link
+// @route   POST /api/videos/:id/share
+// @access  Private
+const shareVideo = async (req, res) => {
+  try {
+    const { platform = 'other', message = null } = req.body;
+
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Create share record
+    const VideoShare = require('../models/VideoShare');
+    const share = await VideoShare.createShare(
+      req.params.id,
+      req.user.id,
+      req.packageId,
+      { platform, message }
+    );
+
+    // Update user stats
+    const UserStats = require('../models/UserStats');
+    await UserStats.updateUserStats(req.user.id, req.packageId, 'share_created', {
+      contentId: req.params.id,
+      contentType: 'video',
+      contentTitle: video.title,
+      metadata: { platform }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        shareUrl: share.shareUrl,
+        shareId: share.shareId,
+        expiresAt: share.expiresAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Share video error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get comments for a video
+// @route   GET /api/videos/:id/comments
+// @access  Public
+const getVideoComments = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'newest' } = req.query;
+
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Get comments
+    const VideoComment = require('../models/VideoComment');
+    const result = await VideoComment.getVideoComments(
+      req.params.id,
+      req.packageId,
+      { page, limit, sortBy }
+    );
+
+    // Add isLiked status for authenticated users
+    if (req.user) {
+      result.comments.forEach(comment => {
+        comment._doc.isLiked = comment.likedBy.includes(req.user.id);
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Get video comments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Add a comment to a video
+// @route   POST /api/videos/:id/comments
+// @access  Private
+const addVideoComment = async (req, res) => {
+  try {
+    const { content, parentCommentId = null } = req.body;
+
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Add comment
+    const VideoComment = require('../models/VideoComment');
+    const comment = await VideoComment.addComment(
+      req.params.id,
+      req.user.id,
+      content,
+      req.packageId,
+      parentCommentId
+    );
+
+    // Update user stats
+    const UserStats = require('../models/UserStats');
+    await UserStats.updateUserStats(req.user.id, req.packageId, 'comment_posted', {
+      contentId: req.params.id,
+      contentType: 'video',
+      contentTitle: video.title
+    });
+
+    res.status(201).json({
+      success: true,
+      data: comment
+    });
+
+  } catch (error) {
+    console.error('Add video comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Toggle video favorite status
+// @route   POST /api/videos/:id/favorite
+// @access  Private
+const toggleVideoFavorite = async (req, res) => {
+  try {
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    const UserFavorite = require('../models/UserFavorite');
+
+    // Check if already favorited
+    const existingFavorite = await UserFavorite.findOne({
+      packageId: req.packageId,
+      user: req.user.id,
+      video: req.params.id
+    });
+
+    let isFavorite = false;
+    let message = '';
+
+    if (existingFavorite) {
+      // Remove from favorites
+      await existingFavorite.remove();
+      message = 'Video removed from favorites';
+      isFavorite = false;
+    } else {
+      // Add to favorites
+      await UserFavorite.create({
+        packageId: req.packageId,
+        user: req.user.id,
+        video: req.params.id
+      });
+      message = 'Video added to favorites';
+      isFavorite = true;
+
+      // Update user stats
+      const UserStats = require('../models/UserStats');
+      await UserStats.updateUserStats(req.user.id, req.packageId, 'favorite_added', {
+        contentId: req.params.id,
+        contentType: 'video',
+        contentTitle: video.title
+      });
+    }
+
+    // Get total favorites count for this video
+    const totalFavorites = await UserFavorite.countDocuments({
+      packageId: req.packageId,
+      video: req.params.id
+    });
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        isFavorite,
+        totalFavorites
+      }
+    });
+
+  } catch (error) {
+    console.error('Toggle video favorite error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Add video to bookmarks with optional timestamp
+// @route   POST /api/videos/:id/bookmark
+// @access  Private
+const addVideoBookmark = async (req, res) => {
+  try {
+    const { note = null, timestamp = null } = req.body;
+
+    // Get video with package ID validation
+    const packageFilter = getPackageFilter(req.packageId);
+    const video = await Video.findOne({ _id: req.params.id, ...packageFilter });
+    if (!video || !video.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video not found'
+      });
+    }
+
+    // Check access
+    const hasAccess = await video.hasAccess(req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    const UserBookmark = require('../models/UserBookmark');
+
+    // Check if already bookmarked
+    const existingBookmark = await UserBookmark.findOne({
+      packageId: req.packageId,
+      user: req.user.id,
+      video: req.params.id
+    });
+
+    if (existingBookmark) {
+      // Update existing bookmark
+      existingBookmark.note = note;
+      if (timestamp !== null) {
+        existingBookmark.timestamp = timestamp;
+      }
+      await existingBookmark.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Bookmark updated',
+        data: existingBookmark
+      });
+    }
+
+    // Create new bookmark
+    const bookmarkData = {
+      packageId: req.packageId,
+      user: req.user.id,
+      video: req.params.id,
+      note
+    };
+
+    if (timestamp !== null) {
+      bookmarkData.timestamp = timestamp;
+    }
+
+    const bookmark = await UserBookmark.create(bookmarkData);
+
+    // Update user stats
+    const UserStats = require('../models/UserStats');
+    await UserStats.updateUserStats(req.user.id, req.packageId, 'bookmark_added', {
+      contentId: req.params.id,
+      contentType: 'video',
+      contentTitle: video.title
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Video bookmarked successfully',
+      data: bookmark
+    });
+
+  } catch (error) {
+    console.error('Add video bookmark error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Remove video from bookmarks
+// @route   DELETE /api/videos/:id/bookmark
+// @access  Private
+const removeVideoBookmark = async (req, res) => {
+  try {
+    const UserBookmark = require('../models/UserBookmark');
+
+    const bookmark = await UserBookmark.findOne({
+      packageId: req.packageId,
+      user: req.user.id,
+      video: req.params.id
+    });
+
+    if (!bookmark) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bookmark not found'
+      });
+    }
+
+    await bookmark.remove();
+
+    res.status(200).json({
+      success: true,
+      message: 'Bookmark removed successfully'
+    });
+
+  } catch (error) {
+    console.error('Remove video bookmark error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   getVideos,
   getVideo,
@@ -722,5 +1102,12 @@ module.exports = {
   getPopularVideos,
   recordProgress,
   getRelatedVideos,
-  getNewVideos
+  getNewVideos,
+  // New social features
+  shareVideo,
+  getVideoComments,
+  addVideoComment,
+  toggleVideoFavorite,
+  addVideoBookmark,
+  removeVideoBookmark
 };

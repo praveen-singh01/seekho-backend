@@ -35,6 +35,8 @@ const onboardingRoutes = require('./routes/onboarding');
 const modulesRoutes = require('./routes/modules');
 const notificationRoutes = require('./routes/notifications');
 const webhookRoutes = require('./routes/webhooks');
+// New enhanced routes
+const progressRoutes = require('./routes/progress');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -185,6 +187,8 @@ app.use('/api/notifications', processPackageId, notificationRoutes);
 app.use('/api/webhooks', optionalPackageId, webhookRoutes);
 app.use('/api/onboarding', processPackageId, onboardingRoutes);
 app.use('/api/modules', processPackageId, modulesRoutes);
+// New enhanced routes
+app.use('/api/progress', processPackageId, progressRoutes);
 
 // Payment Microservice callback routes (no package ID middleware needed)
 app.use('/api', webhookRoutes);

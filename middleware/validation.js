@@ -298,6 +298,98 @@ const validateAnswerSubmission = [
   handleValidationErrors
 ];
 
+// ===== NEW VALIDATION RULES FOR ENHANCED FEATURES =====
+
+// Progress data validation
+const validateProgressData = [
+  body('contentId')
+    .isMongoId()
+    .withMessage('Valid content ID is required'),
+  body('contentType')
+    .isIn(['video', 'text', 'mcq', 'questionnaire'])
+    .withMessage('Content type must be one of: video, text, mcq, questionnaire'),
+  body('progressPercentage')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Progress percentage must be between 0 and 100'),
+  body('timeSpent')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Time spent must be a non-negative integer'),
+  body('status')
+    .optional()
+    .isIn(['notStarted', 'inProgress', 'completed'])
+    .withMessage('Status must be one of: notStarted, inProgress, completed'),
+  body('metadata')
+    .optional()
+    .isObject()
+    .withMessage('Metadata must be an object'),
+  handleValidationErrors
+];
+
+// Comment data validation
+const validateCommentData = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Comment content must be between 1 and 1000 characters'),
+  body('parentCommentId')
+    .optional()
+    .isMongoId()
+    .withMessage('Parent comment ID must be a valid MongoDB ObjectId'),
+  handleValidationErrors
+];
+
+// Share data validation
+const validateShareData = [
+  body('platform')
+    .optional()
+    .isIn(['whatsapp', 'telegram', 'facebook', 'twitter', 'instagram', 'email', 'sms', 'copy', 'other'])
+    .withMessage('Invalid platform'),
+  body('message')
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage('Share message cannot exceed 500 characters'),
+  handleValidationErrors
+];
+
+// Bookmark data validation
+const validateBookmarkData = [
+  body('note')
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage('Bookmark note cannot exceed 500 characters'),
+  body('timestamp')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Timestamp must be a non-negative integer'),
+  handleValidationErrors
+];
+
+// User stats update validation
+const validateStatsUpdate = [
+  body('activityType')
+    .isIn(['video_watched', 'content_completed', 'test_passed', 'login', 'favorite_added', 'bookmark_added', 'comment_posted', 'share_created'])
+    .withMessage('Invalid activity type'),
+  body('contentId')
+    .optional()
+    .isMongoId()
+    .withMessage('Content ID must be a valid MongoDB ObjectId'),
+  body('contentType')
+    .optional()
+    .isIn(['video', 'text', 'mcq', 'questionnaire'])
+    .withMessage('Content type must be one of: video, text, mcq, questionnaire'),
+  body('timeSpent')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Time spent must be a non-negative integer'),
+  body('score')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Score must be between 0 and 100'),
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateUser,
@@ -312,5 +404,11 @@ module.exports = {
   validateLearningModule,
   validateAnswerSubmission,
   validateOnboarding,
-  validateModuleQuery
+  validateModuleQuery,
+  // New validation functions
+  validateProgressData,
+  validateCommentData,
+  validateShareData,
+  validateBookmarkData,
+  validateStatsUpdate
 };
