@@ -285,7 +285,7 @@ userStatsSchema.statics.updateUserStats = async function(userId, packageId, acti
       }
       if (data.contentType === 'mcq' || data.contentType === 'questionnaire') {
         stats.testsCompleted += 1;
-        if (data.score) {
+        if (data.score && stats.testsCompleted > 0) {
           // Update average test score
           const totalScore = stats.averageTestScore * (stats.testsCompleted - 1) + data.score;
           stats.averageTestScore = Math.round(totalScore / stats.testsCompleted);

@@ -186,35 +186,21 @@ userProgressSchema.statics.getUserStats = async function(userId, packageId = nul
     matchQuery.packageId = packageId;
   }
 
-  const stats = await this.aggregate([
-    { $match: matchQuery },
-    {
-      $group: {
-        _id: null,
-        totalContent: { $sum: 1 },
-        totalVideosWatched: {
-          $sum: { $cond: [{ $eq: ['$contentType', 'video'] }, 1, 0] }
-        },
-        totalWatchTime: { $sum: '$timeSpent' },
-        completedContent: {
-          $sum: { $cond: ['$completed', 1, 0] }
-        },
-        completedVideos: {
-          $sum: { $cond: [{ $and: ['$completed', { $eq: ['$contentType', 'video'] }] }, 1, 0] }
-        },
-        averageProgress: { $avg: '$progressPercentage' }
-      }
-    }
-  ]);
+  // Use simple find and calculate stats in JavaScript to avoid aggregation issues
+  const progressRecords = await this.find(matchQuery);
 
-  return stats[0] || {
-    totalContent: 0,
-    totalVideosWatched: 0,
-    totalWatchTime: 0,
-    completedContent: 0,
-    completedVideos: 0,
-    averageProgress: 0
+  const stats = {
+    totalContent: progressRecords.length,
+    totalVideosWatched: progressRecords.filter(p => p.contentType === 'video').length,
+    totalWatchTime: progressRecords.reduce((sum, p) => sum + (p.timeSpent || 0), 0),
+    completedContent: progressRecords.filter(p => p.completed).length,
+    completedVideos: progressRecords.filter(p => p.completed && p.contentType === 'video').length,
+    averageProgress: progressRecords.length > 0
+      ? Math.round(progressRecords.reduce((sum, p) => sum + (p.progressPercentage || 0), 0) / progressRecords.length)
+      : 0
   };
+
+  return stats;
 };
 
 // Static method to record enhanced progress
