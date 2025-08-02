@@ -5,7 +5,7 @@ const MCQ = require('../models/MCQ');
 const Questionnaire = require('../models/Questionnaire');
 const TextContent = require('../models/TextContent');
 const LearningModule = require('../models/LearningModule');
-const { getPackageFilter } = require('../utils/helpers');
+const { getPackageFilter } = require('../config/packages');
 
 // @desc    Record detailed content progress with metadata
 // @route   POST /api/progress/record

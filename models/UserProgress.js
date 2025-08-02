@@ -182,7 +182,7 @@ userProgressSchema.statics.getTopicProgress = async function(userId, topicId, pa
 
 // Enhanced static method to get user's overall statistics
 userProgressSchema.statics.getUserStats = async function(userId, packageId = null) {
-  const matchQuery = { user: mongoose.Types.ObjectId(userId) };
+  const matchQuery = { user: new mongoose.Types.ObjectId(userId) };
   if (packageId) {
     matchQuery.packageId = packageId;
   }

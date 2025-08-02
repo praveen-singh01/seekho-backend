@@ -176,7 +176,7 @@ videoShareSchema.statics.getShareAnalytics = async function(videoId, packageId) 
     {
       $match: {
         packageId,
-        video: mongoose.Types.ObjectId(videoId),
+        video: new mongoose.Types.ObjectId(videoId),
         isActive: true
       }
     },
@@ -202,7 +202,7 @@ videoShareSchema.statics.getShareAnalytics = async function(videoId, packageId) 
     {
       $match: {
         packageId,
-        video: mongoose.Types.ObjectId(videoId),
+        video: new mongoose.Types.ObjectId(videoId),
         isActive: true
       }
     },
