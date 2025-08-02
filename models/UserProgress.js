@@ -108,7 +108,6 @@ const userProgressSchema = new mongoose.Schema({
 
 // Enhanced compound indexes for multi-content support and multi-tenancy
 userProgressSchema.index({ packageId: 1, user: 1, contentId: 1, contentType: 1 }, { unique: true });
-userProgressSchema.index({ packageId: 1, user: 1, video: 1 }, { unique: true, sparse: true }); // Legacy support
 userProgressSchema.index({ packageId: 1, user: 1, lastAccessedAt: -1 });
 userProgressSchema.index({ packageId: 1, user: 1, status: 1 });
 userProgressSchema.index({ packageId: 1, user: 1, contentType: 1 });
@@ -236,6 +235,7 @@ userProgressSchema.statics.recordProgress = async function(userId, contentId, co
   if (contentType === 'video') {
     updateData.progress = progressData.progress || 0;
     updateData.duration = progressData.duration;
+    updateData.video = contentId; // Set video field for backward compatibility
   }
 
   // Set status based on progress
