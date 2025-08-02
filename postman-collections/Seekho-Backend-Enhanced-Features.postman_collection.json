@@ -1,0 +1,937 @@
+{
+	"info": {
+		"_postman_id": "enhanced-features-collection",
+		"name": "Seekho Backend - Enhanced Features API Collection",
+		"description": "Complete API collection for enhanced features including progress tracking, video social features, and enhanced user statistics as specified in miising.md",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "seekho-backend"
+	},
+	"item": [
+		{
+			"name": "🎯 Progress Tracking APIs",
+			"item": [
+				{
+					"name": "Record Enhanced Progress",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"contentId\": \"{{content_id}}\",\n  \"contentType\": \"video\",\n  \"progressPercentage\": 75,\n  \"timeSpent\": 1200,\n  \"status\": \"inProgress\",\n  \"metadata\": {\n    \"moduleId\": \"{{module_id}}\",\n    \"contentTitle\": \"Introduction to JavaScript\",\n    \"contentOrder\": 1,\n    \"score\": 85,\n    \"totalQuestions\": 10,\n    \"percentage\": 85,\n    \"passed\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/progress/record",
+							"host": ["{{base_url}}"],
+							"path": ["api", "progress", "record"]
+						},
+						"description": "Record detailed content progress with metadata for any content type (video, text, mcq, questionnaire)"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"contentId\": \"507f1f77bcf86cd799439011\",\n  \"contentType\": \"video\",\n  \"progressPercentage\": 75,\n  \"timeSpent\": 1200,\n  \"status\": \"inProgress\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/progress/record",
+									"host": ["{{base_url}}"],
+									"path": ["api", "progress", "record"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"message\": \"Progress recorded successfully\",\n  \"data\": {\n    \"progressId\": \"507f1f77bcf86cd799439013\",\n    \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Bulk Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/progress/bulk?contentIds={{content_id_1}},{{content_id_2}}&moduleId={{module_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "progress", "bulk"],
+							"query": [
+								{
+									"key": "contentIds",
+									"value": "{{content_id_1}},{{content_id_2}}",
+									"description": "Comma-separated list of content IDs"
+								},
+								{
+									"key": "moduleId",
+									"value": "{{module_id}}",
+									"description": "Optional module ID filter"
+								}
+							]
+						},
+						"description": "Retrieve progress for multiple content items"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/progress/bulk?contentIds=507f1f77bcf86cd799439011,507f1f77bcf86cd799439012",
+									"host": ["{{base_url}}"],
+									"path": ["api", "progress", "bulk"],
+									"query": [
+										{
+											"key": "contentIds",
+											"value": "507f1f77bcf86cd799439011,507f1f77bcf86cd799439012"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"507f1f77bcf86cd799439011\": {\n      \"progressPercentage\": 100,\n      \"status\": \"completed\",\n      \"timeSpent\": 1200,\n      \"lastAccessed\": \"2024-01-15T10:30:00.000Z\",\n      \"metadata\": {}\n    },\n    \"507f1f77bcf86cd799439012\": {\n      \"progressPercentage\": 45,\n      \"status\": \"inProgress\",\n      \"timeSpent\": 600,\n      \"lastAccessed\": \"2024-01-15T09:15:00.000Z\",\n      \"metadata\": {}\n    }\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get User Progress Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/progress/user",
+							"host": ["{{base_url}}"],
+							"path": ["api", "progress", "user"]
+						},
+						"description": "Get user's overall progress summary"
+					}
+				},
+				{
+					"name": "Get Module Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/progress/module/{{module_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "progress", "module", "{{module_id}}"]
+						},
+						"description": "Get progress for a specific module"
+					}
+				}
+			],
+			"description": "Enhanced progress tracking APIs for all content types"
+		},
+		{
+			"name": "🎬 Video Social Features",
+			"item": [
+				{
+					"name": "Share Video",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"platform\": \"whatsapp\",\n  \"message\": \"Check out this amazing video!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/share",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "share"]
+						},
+						"description": "Share a video and generate shareable link"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"platform\": \"whatsapp\",\n  \"message\": \"Check out this video!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/share",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "share"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"shareUrl\": \"https://app.seekho.com/shared/video/abc123def456\",\n    \"shareId\": \"abc123def456\",\n    \"expiresAt\": null\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Video Comments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/comments?page=1&limit=20&sortBy=newest",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "comments"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Comments per page (default: 20)"
+								},
+								{
+									"key": "sortBy",
+									"value": "newest",
+									"description": "Sort order (newest|oldest|popular)"
+								}
+							]
+						},
+						"description": "Retrieve comments for a video"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/comments?page=1&limit=20&sortBy=newest",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "comments"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										},
+										{
+											"key": "sortBy",
+											"value": "newest"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"comments\": [\n      {\n        \"id\": \"507f1f77bcf86cd799439013\",\n        \"userId\": \"507f1f77bcf86cd799439014\",\n        \"userName\": \"John Doe\",\n        \"userAvatar\": \"https://example.com/avatar.jpg\",\n        \"content\": \"Great explanation!\",\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"likes\": 5,\n        \"isLiked\": false,\n        \"replies\": 2\n      }\n    ],\n    \"pagination\": {\n      \"currentPage\": 1,\n      \"totalPages\": 5,\n      \"totalComments\": 100\n    }\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Add Video Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"This is a great video! Very helpful explanation.\",\n  \"parentCommentId\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "comments"]
+						},
+						"description": "Add a comment to a video"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"content\": \"Great video!\",\n  \"parentCommentId\": null\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/comments",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "comments"]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"507f1f77bcf86cd799439015\",\n    \"userId\": \"507f1f77bcf86cd799439014\",\n    \"userName\": \"John Doe\",\n    \"content\": \"Great video!\",\n    \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n    \"likes\": 0,\n    \"replies\": 0\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Toggle Video Favorite",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/favorite",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "favorite"]
+						},
+						"description": "Add or remove video from favorites"
+					},
+					"response": [
+						{
+							"name": "Added to Favorites",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/favorite",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "favorite"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"message\": \"Video added to favorites\",\n  \"data\": {\n    \"isFavorite\": true,\n    \"totalFavorites\": 1250\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Add Video Bookmark",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"note\": \"Important concept explained at this timestamp\",\n  \"timestamp\": 450\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/bookmark",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "bookmark"]
+						},
+						"description": "Bookmark a video with optional note and timestamp"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"note\": \"Important concept\",\n  \"timestamp\": 450\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/bookmark",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "bookmark"]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"message\": \"Video bookmarked successfully\",\n  \"data\": {\n    \"id\": \"507f1f77bcf86cd799439016\",\n    \"note\": \"Important concept\",\n    \"timestamp\": 450,\n    \"addedAt\": \"2024-01-15T10:30:00.000Z\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Remove Video Bookmark",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}/bookmark",
+							"host": ["{{base_url}}"],
+							"path": ["api", "videos", "{{video_id}}", "bookmark"]
+						},
+						"description": "Remove video bookmark"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/videos/507f1f77bcf86cd799439011/bookmark",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "507f1f77bcf86cd799439011", "bookmark"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"message\": \"Bookmark removed successfully\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Video social features including sharing, comments, favorites, and bookmarks"
+		},
+		{
+			"name": "📊 Enhanced User Statistics",
+			"item": [
+				{
+					"name": "Update User Statistics",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"activityType\": \"video_watched\",\n  \"contentId\": \"{{content_id}}\",\n  \"contentType\": \"video\",\n  \"timeSpent\": 1200,\n  \"score\": 85\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/stats/update",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "stats", "update"]
+						},
+						"description": "Update user statistics based on activity"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"activityType\": \"video_watched\",\n  \"contentId\": \"507f1f77bcf86cd799439011\",\n  \"contentType\": \"video\",\n  \"timeSpent\": 1200\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/users/stats/update",
+									"host": ["{{base_url}}"],
+									"path": ["api", "users", "stats", "update"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"message\": \"User statistics updated successfully\",\n  \"data\": {\n    \"currentStreak\": 7,\n    \"lastActivityAt\": \"2024-01-15T10:30:00.000Z\",\n    \"newAchievements\": []\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Detailed User Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/stats/detailed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "stats", "detailed"]
+						},
+						"description": "Get comprehensive user statistics including progress aggregation"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/users/stats/detailed",
+									"host": ["{{base_url}}"],
+									"path": ["api", "users", "stats", "detailed"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"data\": {\n    \"videosWatched\": 45,\n    \"totalWatchTime\": 18000,\n    \"completedCourses\": 3,\n    \"favoriteVideos\": 12,\n    \"totalBookmarks\": 8,\n    \"currentStreak\": 7,\n    \"averageProgress\": 78.5,\n    \"progressByModule\": {\n      \"moduleId1\": {\n        \"completedContent\": 8,\n        \"totalContent\": 10,\n        \"progressPercentage\": 80\n      }\n    },\n    \"recentActivity\": [\n      {\n        \"type\": \"content_completed\",\n        \"contentTitle\": \"Present Tense Basics\",\n        \"timestamp\": \"2024-01-15T10:30:00.000Z\"\n      }\n    ],\n    \"achievements\": [\n      {\n        \"id\": \"first_video\",\n        \"title\": \"First Video Watched\",\n        \"unlockedAt\": \"2024-01-15T10:30:00.000Z\"\n      }\n    ]\n  }\n}"
+						}
+					]
+				}
+			],
+			"description": "Enhanced user statistics with real-time updates and comprehensive analytics"
+		},
+		{
+			"name": "🔐 Authentication & Setup",
+			"item": [
+				{
+					"name": "Google Authentication (Android)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"idToken\": \"{{google_id_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/android/google",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "android", "google"]
+						},
+						"description": "Authenticate user with Google ID token and get JWT"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"idToken\": \"google_id_token_here\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/auth/android/google",
+									"host": ["{{base_url}}"],
+									"path": ["api", "auth", "android", "google"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user\": {\n    \"id\": \"507f1f77bcf86cd799439014\",\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"profilePicture\": \"https://example.com/avatar.jpg\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "X-Package-ID",
+								"value": "{{package_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "profile"]
+						},
+						"description": "Get current user profile information"
+					}
+				}
+			],
+			"description": "Authentication endpoints and user profile management"
+		},
+		{
+			"name": "🧪 Test Scenarios",
+			"item": [
+				{
+					"name": "Complete Learning Flow Test",
+					"item": [
+						{
+							"name": "1. Authenticate User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"idToken\": \"{{google_id_token}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/auth/android/google",
+									"host": ["{{base_url}}"],
+									"path": ["api", "auth", "android", "google"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('auth_token', response.token);",
+											"    console.log('Auth token set:', response.token);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "2. Record Video Progress",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"contentId\": \"{{content_id}}\",\n  \"contentType\": \"video\",\n  \"progressPercentage\": 100,\n  \"timeSpent\": 1800,\n  \"status\": \"completed\",\n  \"metadata\": {\n    \"moduleId\": \"{{module_id}}\",\n    \"contentTitle\": \"Introduction to Present Tense\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/progress/record",
+									"host": ["{{base_url}}"],
+									"path": ["api", "progress", "record"]
+								}
+							}
+						},
+						{
+							"name": "3. Add Video to Favorites",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/videos/{{video_id}}/favorite",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "{{video_id}}", "favorite"]
+								}
+							}
+						},
+						{
+							"name": "4. Add Comment",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"content\": \"This video really helped me understand present tense! Thank you!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/videos/{{video_id}}/comments",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "{{video_id}}", "comments"]
+								}
+							}
+						},
+						{
+							"name": "5. Share Video",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"platform\": \"whatsapp\",\n  \"message\": \"Check out this amazing English lesson!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/videos/{{video_id}}/share",
+									"host": ["{{base_url}}"],
+									"path": ["api", "videos", "{{video_id}}", "share"]
+								}
+							}
+						},
+						{
+							"name": "6. Get Updated Statistics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "X-Package-ID",
+										"value": "{{package_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/users/stats/detailed",
+									"host": ["{{base_url}}"],
+									"path": ["api", "users", "stats", "detailed"]
+								}
+							}
+						}
+					],
+					"description": "Complete flow testing all enhanced features together"
+				}
+			],
+			"description": "Test scenarios for comprehensive feature validation"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5001",
+			"type": "string",
+			"description": "Base URL for the Seekho Backend API"
+		},
+		{
+			"key": "package_id",
+			"value": "com.gumbo.learning",
+			"type": "string",
+			"description": "Package ID for Seekho Learning app (use com.gumbo.english for English app)"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string",
+			"description": "JWT authentication token (auto-populated after login)"
+		},
+		{
+			"key": "video_id",
+			"value": "507f1f77bcf86cd799439011",
+			"type": "string",
+			"description": "Sample video ID for testing"
+		},
+		{
+			"key": "content_id",
+			"value": "507f1f77bcf86cd799439011",
+			"type": "string",
+			"description": "Sample content ID for testing"
+		},
+		{
+			"key": "content_id_1",
+			"value": "507f1f77bcf86cd799439011",
+			"type": "string",
+			"description": "First content ID for bulk operations"
+		},
+		{
+			"key": "content_id_2",
+			"value": "507f1f77bcf86cd799439012",
+			"type": "string",
+			"description": "Second content ID for bulk operations"
+		},
+		{
+			"key": "module_id",
+			"value": "507f1f77bcf86cd799439012",
+			"type": "string",
+			"description": "Sample module ID for testing"
+		},
+		{
+			"key": "google_id_token",
+			"value": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzAyNzEwMzgiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiIxMjM0NTY3ODkwMTIzNDU2Nzg5MDEiLCJuYW1lIjoiVGVzdCBVc2VyIiwiZW1haWwiOiJ0ZXN0LnVzZXJAZ21haWwuY29tIiwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImlzcyI6ImFjY291bnRzLmdvb2dsZS5jb20iLCJhdWQiOiI2MDE4OTAyNDUyNzgtOGJtNzV2aGN0bDN1ZGlqY2YzdWoxa21kcm04NDhrcnIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJpYXQiOjE3NTQwNzUxNjMsImV4cCI6MTc1NDA3ODc2MywiZW1haWxfdmVyaWZpZWQiOnRydWUsImdpdmVuX25hbWUiOiJUZXN0IiwiZmFtaWx5X25hbWUiOiJVc2VyIiwibG9jYWxlIjoiZW4ifQ.ZHVtbXlfc2lnbmF0dXJlX2Zvcl90ZXN0aW5n",
+			"type": "string",
+			"description": "Sample Google ID token for testing authentication"
+		}
+	]
+}
